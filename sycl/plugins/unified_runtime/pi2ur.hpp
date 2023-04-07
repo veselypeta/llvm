@@ -11,6 +11,8 @@
 #include <sycl/detail/pi.h>
 #include <ur/ur.hpp>
 
+#include <cassert>
+
 // Map of UR error codes to PI error codes
 static pi_result ur2piResult(ur_result_t urResult) {
   if (urResult == UR_RESULT_SUCCESS)
@@ -1481,4 +1483,329 @@ piextKernelCreateWithNativeHandle(pi_native_handle native_handle,
 }
 // Kernel
 ///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// Queue
+inline ur_queue_flags_t ConvertQueueFlagsBitfield(pi_queue_properties flags) {
+  ur_queue_flags_t Flags = 0;
+  static std::unordered_map<pi_queue_properties, ur_queue_flag_t> FlagMap = {
+      {PI_QUEUE_FLAG_OUT_OF_ORDER_EXEC_MODE_ENABLE,
+       UR_QUEUE_FLAG_OUT_OF_ORDER_EXEC_MODE_ENABLE},
+      {PI_QUEUE_FLAG_PROFILING_ENABLE, UR_QUEUE_FLAG_PROFILING_ENABLE},
+      {PI_QUEUE_FLAG_ON_DEVICE, UR_QUEUE_FLAG_ON_DEVICE},
+      {PI_QUEUE_FLAG_ON_DEVICE_DEFAULT, UR_QUEUE_FLAG_ON_DEVICE_DEFAULT},
+      {PI_EXT_ONEAPI_QUEUE_FLAG_DISCARD_EVENTS, UR_QUEUE_FLAG_DISCARD_EVENTS},
+      {PI_EXT_ONEAPI_QUEUE_FLAG_PRIORITY_LOW, UR_QUEUE_FLAG_PRIORITY_LOW},
+      {PI_EXT_ONEAPI_QUEUE_FLAG_PRIORITY_HIGH, UR_QUEUE_FLAG_PRIORITY_HIGH},
+  };
+  for (auto &FlagPair : FlagMap) {
+    if (flags & FlagPair.first) {
+      Flags |= FlagPair.second;
+    }
+  }
+
+  return Flags;
+}
+
+inline pi_result piQueueCreate(pi_context context, pi_device device,
+                               pi_queue_properties properties,
+                               pi_queue *queue) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
+  auto phQueue = reinterpret_cast<ur_queue_handle_t *>(queue);
+  ur_queue_properties_t URProperties = {
+      /*stype*/ UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
+      /*pNext*/ nullptr,
+      /*flags*/ ConvertQueueFlagsBitfield(properties),
+  };
+
+  HANDLE_ERRORS(urQueueCreate(hContext, hDevice, &URProperties, phQueue));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextQueueCreate(pi_context context, pi_device device,
+                                  pi_queue_properties *properties,
+                                  pi_queue *queue) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
+  auto phQueue = reinterpret_cast<ur_queue_handle_t *>(queue);
+
+  assert(properties);
+  // Expect flags mask to be passed first.
+  assert(properties[0] == PI_QUEUE_FLAGS);
+  if (properties[0] != PI_QUEUE_FLAGS)
+    return PI_ERROR_INVALID_VALUE;
+  pi_queue_properties Flags = properties[1];
+  // Extra data isn't supported yet.
+  assert(properties[2] == 0);
+  if (properties[2] != 0)
+    return PI_ERROR_INVALID_VALUE;
+
+  ur_queue_properties_t Properties = {
+      /*stype*/ UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
+      /*pNext*/ nullptr,
+      /*flags*/ ConvertQueueFlagsBitfield(Flags),
+  };
+
+  HANDLE_ERRORS(urQueueCreate(hContext, hDevice, &Properties, phQueue));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextQueueCreate2(pi_context context, pi_device device,
+                                   pi_queue_properties *properties,
+                                   pi_queue *queue) {
+  return pi2ur::piextQueueCreate(context, device, properties, queue);
+}
+
+inline pi_result piQueueGetInfo(pi_queue command_queue,
+                                pi_queue_info param_name,
+                                size_t param_value_size, void *param_value,
+                                size_t *param_value_size_ret) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+
+  static std::unordered_map<pi_queue_info, ur_queue_info_t> InfoMapping = {
+      {PI_QUEUE_INFO_CONTEXT, UR_QUEUE_INFO_CONTEXT},
+      {PI_QUEUE_INFO_DEVICE, UR_QUEUE_INFO_DEVICE},
+      {PI_QUEUE_INFO_DEVICE_DEFAULT, UR_QUEUE_INFO_DEVICE_DEFAULT},
+      {PI_QUEUE_INFO_REFERENCE_COUNT, UR_QUEUE_INFO_REFERENCE_COUNT},
+      {PI_QUEUE_INFO_SIZE, UR_QUEUE_INFO_SIZE},
+      {PI_EXT_ONEAPI_QUEUE_INFO_EMPTY,
+       static_cast<ur_queue_info_t>(UR_EXT_QUEUE_INFO_EMPTY)},
+  };
+
+  auto InfoType = InfoMapping.find(param_name);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  HANDLE_ERRORS(urQueueGetInfo(hQueue, InfoType->second, param_value_size,
+                               param_value, param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piQueueRetain(pi_queue command_queue) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  HANDLE_ERRORS(urQueueRetain(hQueue));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piQueueRelease(pi_queue command_queue) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  HANDLE_ERRORS(urQueueRelease(hQueue));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piQueueFinish(pi_queue command_queue) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  HANDLE_ERRORS(urQueueFinish(hQueue));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piQueueFlush(pi_queue command_queue) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  HANDLE_ERRORS(urQueueFlush(hQueue));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextQueueGetNativeHandle(pi_queue queue,
+                                           pi_native_handle *nativeHandle) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phNativeHandle = reinterpret_cast<ur_native_handle_t *>(nativeHandle);
+  HANDLE_ERRORS(urQueueGetNativeHandle(hQueue, phNativeHandle));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextQueueGetNativeHandle2(pi_queue queue,
+                                            pi_native_handle *nativeHandle,
+                                            int32_t *nativeHandleDesc) {
+
+  (void) nativeHandleDesc;
+  return pi2ur::piextQueueGetNativeHandle(queue, nativeHandle);
+}
+
+inline pi_result piextQueueCreateWithNativeHandle(pi_native_handle nativeHandle,
+                                                  pi_context context,
+                                                  pi_device device,
+                                                  bool pluginOwnsNativeHandle,
+                                                  pi_queue *queue) {
+  auto hNativeHandle = reinterpret_cast<ur_native_handle_t>(nativeHandle);
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto phQueue = reinterpret_cast<ur_queue_handle_t *>(queue);
+
+  (void)device;
+  (void)pluginOwnsNativeHandle;
+
+  HANDLE_ERRORS(
+      urQueueCreateWithNativeHandle(hNativeHandle, hContext, phQueue));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextQueueCreateWithNativeHandle2(
+    pi_native_handle nativeHandle, int32_t nativeHandleDesc, pi_context context,
+    pi_device device, bool pluginOwnsNativeHandle,
+    pi_queue_properties *Properties, pi_queue *queue) {
+  (void)nativeHandleDesc;
+  (void)Properties;
+  return pi2ur::piextQueueCreateWithNativeHandle(nativeHandle, context, device,
+                                                 pluginOwnsNativeHandle, queue);
+}
+
+// Queue
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// Event
+inline pi_result piEventCreate(pi_context context, pi_event *ret_event) {
+  assert(false && "piEventCreate not implement in pi2ur");
+  return PI_ERROR_INVALID_OPERATION;
+}
+
+inline pi_result piEventGetInfo(pi_event event, pi_event_info param_name,
+                                size_t param_value_size, void *param_value,
+                                size_t *param_value_size_ret) {
+  auto hEvent = reinterpret_cast<ur_event_handle_t>(event);
+
+  // NOTE: This map isn't static to prevent a failure in
+  // Regression/static-buffer-dtor from the llvm-test-suite. If the map is
+  // static then it may have been destroyed by the time this function is called
+  // from the destructor of the static buffer object in the test.
+  std::unordered_map<pi_event_info, ur_event_info_t> EventInfoMap = {
+      {PI_EVENT_INFO_COMMAND_QUEUE, UR_EVENT_INFO_COMMAND_QUEUE},
+      {PI_EVENT_INFO_CONTEXT, UR_EVENT_INFO_CONTEXT},
+      {PI_EVENT_INFO_COMMAND_TYPE, UR_EVENT_INFO_COMMAND_TYPE},
+      {PI_EVENT_INFO_COMMAND_EXECUTION_STATUS,
+       UR_EVENT_INFO_COMMAND_EXECUTION_STATUS},
+      {PI_EVENT_INFO_REFERENCE_COUNT, UR_EVENT_INFO_REFERENCE_COUNT},
+  };
+  auto EventInfoMapIt = EventInfoMap.find(param_name);
+  if (EventInfoMapIt == EventInfoMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  HANDLE_ERRORS(urEventGetInfo(hEvent, EventInfoMapIt->second, param_value_size,
+                               param_value, param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEventGetProfilingInfo(pi_event event,
+                                         pi_profiling_info param_name,
+                                         size_t param_value_size,
+                                         void *param_value,
+                                         size_t *param_value_size_ret) {
+  auto hEvent = reinterpret_cast<ur_event_handle_t>(event);
+
+  static std::unordered_map<pi_profiling_info, ur_profiling_info_t>
+      EventProfilingInfoMap = {
+          {PI_PROFILING_INFO_COMMAND_QUEUED, UR_PROFILING_INFO_COMMAND_QUEUED},
+          {PI_PROFILING_INFO_COMMAND_SUBMIT, UR_PROFILING_INFO_COMMAND_SUBMIT},
+          {PI_PROFILING_INFO_COMMAND_START, UR_PROFILING_INFO_COMMAND_START},
+          {PI_PROFILING_INFO_COMMAND_END, UR_PROFILING_INFO_COMMAND_END},
+      };
+  auto EventProfilingInfoMapIt = EventProfilingInfoMap.find(param_name);
+  if (EventProfilingInfoMapIt == EventProfilingInfoMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  HANDLE_ERRORS(urEventGetProfilingInfo(hEvent, EventProfilingInfoMapIt->second,
+                                        param_value_size, param_value,
+                                        param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEventsWait(pi_uint32 num_events,
+                              const pi_event *event_list) {
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_list);
+
+  HANDLE_ERRORS(urEventWait(num_events, phEventWaitList));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEventSetCallback(
+    pi_event event, pi_int32 command_exec_callback_type,
+    void (*pfn_notify)(pi_event event, pi_int32 event_command_status,
+                       void *user_data),
+    void *user_data) {
+
+  auto hEvent = reinterpret_cast<ur_event_handle_t>(event);
+  auto pfnNotifyUR = reinterpret_cast<ur_event_callback_t>(pfn_notify);
+
+  // These values aren't documented in PI, but are assumed to match
+  // OpenCL's clSetEventCallback, so we can cast to the UR enum directly
+  auto urExecInfo =
+      static_cast<ur_execution_info_t>(command_exec_callback_type);
+
+  HANDLE_ERRORS(urEventSetCallback(hEvent, urExecInfo, pfnNotifyUR, user_data));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEventSetStatus(pi_event event, pi_int32 execution_status) {
+  assert(false && "piEventSetStatus not implement in pi2ur");
+  return PI_ERROR_INVALID_OPERATION;
+}
+
+inline pi_result piEventRetain(pi_event event) {
+  auto hEvent = reinterpret_cast<ur_event_handle_t>(event);
+  HANDLE_ERRORS(urEventRetain(hEvent));
+  return PI_SUCCESS;
+}
+
+inline pi_result piEventRelease(pi_event event) {
+  auto hEvent = reinterpret_cast<ur_event_handle_t>(event);
+  HANDLE_ERRORS(urEventRelease(hEvent));
+  return PI_SUCCESS;
+}
+
+inline pi_result piextEventGetNativeHandle(pi_event event,
+                                           pi_native_handle *nativeHandle) {
+  auto hEvent = reinterpret_cast<ur_event_handle_t>(event);
+  auto phNativeEvent = reinterpret_cast<ur_native_handle_t *>(nativeHandle);
+  HANDLE_ERRORS(urEventGetNativeHandle(hEvent, phNativeEvent));
+  return PI_SUCCESS;
+}
+
+inline pi_result piextEventCreateWithNativeHandle(pi_native_handle nativeHandle,
+                                                  pi_context context,
+                                                  bool ownNativeHandle,
+                                                  pi_event *event) {
+  auto hNativeEvent = reinterpret_cast<ur_native_handle_t>(nativeHandle);
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEventCreateWithNativeHandle(hNativeEvent, hContext, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEnqueueEventsWait(pi_queue command_queue,
+                                     pi_uint32 num_events_in_wait_list,
+                                     const pi_event *event_wait_list,
+                                     pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueEventsWait(hQueue, num_events_in_wait_list,
+                                    phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+// Event
+///////////////////////////////////////////////////////////////////////////////
+
 } // namespace pi2ur

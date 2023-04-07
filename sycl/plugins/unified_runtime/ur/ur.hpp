@@ -55,6 +55,9 @@ const int UR_EXT_CONTEXT_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES =
 const int UR_EXT_CONTEXT_INFO_USM_MEMSET2D_SUPPORT =
     UR_EXT_CONTEXT_INFO_END - 3;
 
+const int UR_EXT_QUEUE_INFO_END = UR_QUEUE_INFO_FORCE_UINT32;
+const int UR_EXT_QUEUE_INFO_EMPTY = UR_EXT_QUEUE_INFO_END - 1;
+
 const ur_device_info_t UR_EXT_DEVICE_INFO_OPENCL_C_VERSION =
     (ur_device_info_t)0x103D;
 
@@ -72,6 +75,13 @@ const int UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS = 1 << 3;
 #define __SYCL_UR_PROGRAM_METADATA_TAG_REQD_WORK_GROUP_SIZE                    \
   "@reqd_work_group_size"
 #define __SYCL_UR_PROGRAM_METADATA_GLOBAL_ID_MAPPING "@global_id_mapping"
+
+// TODO(ur): These CUDA specific queue properties should live in the UR spec. In
+// the mean time just use the PI values.
+// PI Command Queue using Default stream
+#define __SYCL_UR_CUDA_USE_DEFAULT_STREAM (0xFF03)
+// PI Command queue will sync with default stream
+#define __SYCL_UR_CUDA_SYNC_WITH_DEFAULT (0xFF04)
 
 // Terminates the process with a catastrophic error message.
 [[noreturn]] inline void die(const char *Message) {
