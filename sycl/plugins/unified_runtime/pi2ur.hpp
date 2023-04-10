@@ -1034,4 +1034,424 @@ inline pi_result piextContextCreateWithNativeHandle(
 // Context
 ///////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////////////////
+// Program
+inline pi_result piProgramCreate(pi_context, const void *, size_t,
+                                 pi_program *) {
+  die("piProgramCreate not implemented");
+  return {};
+}
+
+inline pi_result piclProgramCreateWithSource(pi_context context,
+                                             pi_uint32 count,
+                                             const char **strings,
+                                             const size_t *lengths,
+                                             pi_program *ret_program) {
+  die("piclProgramCreateWithSource doesn't have a mapping in UR");
+  return {};
+}
+
+inline ur_result_t
+mapPIMetadataToUR(const pi_device_binary_property *pi_metadata,
+                  ur_program_metadata_t *ur_metadata) {
+  ur_metadata->pName = (*pi_metadata)->Name;
+  ur_metadata->size = (*pi_metadata)->ValSize;
+  switch ((*pi_metadata)->Type) {
+  case PI_PROPERTY_TYPE_UINT32:
+    ur_metadata->type = UR_PROGRAM_METADATA_TYPE_UINT32;
+    ur_metadata->value.data32 = (*pi_metadata)->ValSize;
+    return UR_RESULT_SUCCESS;
+  case PI_PROPERTY_TYPE_BYTE_ARRAY:
+    ur_metadata->type = UR_PROGRAM_METADATA_TYPE_BYTE_ARRAY;
+    ur_metadata->value.pData = (*pi_metadata)->ValAddr;
+    return UR_RESULT_SUCCESS;
+  case PI_PROPERTY_TYPE_STRING:
+    ur_metadata->type = UR_PROGRAM_METADATA_TYPE_STRING;
+    ur_metadata->value.pString =
+        reinterpret_cast<char *>((*pi_metadata)->ValAddr);
+    return UR_RESULT_SUCCESS;
+  default:
+    return UR_RESULT_ERROR_INVALID_VALUE;
+  }
+}
+
+inline pi_result piProgramCreateWithBinary(
+    pi_context context, pi_uint32 num_devices, const pi_device *device_list,
+    const size_t *lengths, const unsigned char **binaries,
+    size_t num_metadata_entries, const pi_device_binary_property *metadata,
+    pi_int32 *binary_status, pi_program *program) {
+  (void)binary_status;
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device_list[0]);
+  auto hProgram = reinterpret_cast<ur_program_handle_t *>(program);
+
+  std::unique_ptr<ur_program_metadata_t[]> pMetadatas(
+      new ur_program_metadata_t[num_metadata_entries]);
+  for (unsigned i = 0; i < num_metadata_entries; i++) {
+    HANDLE_ERRORS(mapPIMetadataToUR(&metadata[i], &pMetadatas[i]));
+  }
+
+  ur_program_properties_t pProperties;
+  pProperties.stype = UR_STRUCTURE_TYPE_PROGRAM_PROPERTIES;
+  pProperties.pNext = nullptr;
+  pProperties.count = num_metadata_entries;
+  pProperties.pMetadatas = pMetadatas.get();
+
+  HANDLE_ERRORS(urProgramCreateWithBinary(hContext, hDevice, lengths[0],
+                                          binaries[0], &pProperties, hProgram));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piProgramGetInfo(pi_program program,
+                                  pi_program_info param_name,
+                                  size_t param_value_size, void *param_value,
+                                  size_t *param_value_size_ret) {
+  static std::unordered_map<pi_program_info, ur_program_info_t> InfoMapping = {
+      {PI_PROGRAM_INFO_REFERENCE_COUNT, UR_PROGRAM_INFO_REFERENCE_COUNT},
+      {PI_PROGRAM_INFO_CONTEXT, UR_PROGRAM_INFO_CONTEXT},
+      {PI_PROGRAM_INFO_NUM_DEVICES, UR_PROGRAM_INFO_NUM_DEVICES},
+      {PI_PROGRAM_INFO_DEVICES, UR_PROGRAM_INFO_DEVICES},
+      {PI_PROGRAM_INFO_SOURCE, UR_PROGRAM_INFO_SOURCE},
+      {PI_PROGRAM_INFO_BINARY_SIZES, UR_PROGRAM_INFO_BINARY_SIZES},
+      {PI_PROGRAM_INFO_BINARIES, UR_PROGRAM_INFO_BINARIES},
+      {PI_PROGRAM_INFO_NUM_KERNELS, UR_PROGRAM_INFO_NUM_KERNELS},
+      {PI_PROGRAM_INFO_KERNEL_NAMES, UR_PROGRAM_INFO_KERNEL_NAMES},
+  };
+
+  auto InfoType = InfoMapping.find(param_name);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  HANDLE_ERRORS(urProgramGetInfo(hProgram, InfoType->second, param_value_size,
+                                 param_value, param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piProgramCompile(
+    pi_program program, pi_uint32 num_devices, const pi_device *device_list,
+    const char *options, pi_uint32 num_input_headers,
+    const pi_program *input_headers, const char **header_include_names,
+    void (*pfn_notify)(pi_program program, void *user_data), void *user_data) {
+  (void)num_devices;
+  (void)device_list;
+  (void)num_input_headers;
+  (void)input_headers;
+  (void)header_include_names;
+  (void)pfn_notify;
+
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  ur_context_handle_t hContext{};
+
+  HANDLE_ERRORS(urProgramCompile(hContext, hProgram, options));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piProgramBuild(pi_program program, pi_uint32 num_devices,
+               const pi_device *device_list, const char *options,
+               void (*pfn_notify)(pi_program program, void *user_data),
+               void *user_data) {
+  (void)num_devices;
+  (void)device_list;
+  (void)pfn_notify;
+
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  ur_context_handle_t hContext{};
+
+  HANDLE_ERRORS(urProgramBuild(hContext, hProgram, options));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piProgramLink(pi_context context, pi_uint32 num_devices,
+              const pi_device *device_list, const char *options,
+              pi_uint32 num_input_programs, const pi_program *input_programs,
+              void (*pfn_notify)(pi_program program, void *user_data),
+              void *user_data, pi_program *ret_program) {
+  (void)num_devices;
+  (void)device_list;
+  (void)pfn_notify;
+  (void)user_data;
+
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto phPrograms =
+      reinterpret_cast<const ur_program_handle_t *>(input_programs);
+  auto phProgram = reinterpret_cast<ur_program_handle_t *>(ret_program);
+
+  HANDLE_ERRORS(urProgramLink(hContext, num_input_programs, phPrograms, options,
+                              phProgram));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piProgramGetBuildInfo(pi_program program, pi_device device,
+                                       pi_program_build_info param_name,
+                                       size_t param_value_size,
+                                       void *param_value,
+                                       size_t *param_value_size_ret) {
+  static std::unordered_map<pi_program_build_info, ur_program_build_info_t>
+      InfoMapping = {
+          {PI_PROGRAM_BUILD_INFO_STATUS, UR_PROGRAM_BUILD_INFO_STATUS},
+          {PI_PROGRAM_BUILD_INFO_OPTIONS, UR_PROGRAM_BUILD_INFO_OPTIONS},
+          {PI_PROGRAM_BUILD_INFO_LOG, UR_PROGRAM_BUILD_INFO_LOG}};
+
+  auto InfoType = InfoMapping.find(param_name);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
+
+  HANDLE_ERRORS(urProgramGetBuildInfo(hProgram, hDevice, InfoType->second,
+                                      param_value_size, param_value,
+                                      param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piProgramRetain(pi_program program) {
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  HANDLE_ERRORS(urProgramRetain(hProgram));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piProgramRelease(pi_program program) {
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  HANDLE_ERRORS(urProgramRelease(hProgram));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextProgramGetNativeHandle(pi_program program,
+                                             pi_native_handle *nativeHandle) {
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  auto phNativeHandle = reinterpret_cast<ur_native_handle_t *>(nativeHandle);
+  HANDLE_ERRORS(urProgramGetNativeHandle(hProgram, phNativeHandle));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piextProgramCreateWithNativeHandle(pi_native_handle nativeHandle,
+                                   pi_context context, bool ownNativeHandle,
+                                   pi_program *program) {
+  (void)ownNativeHandle;
+
+  auto hNativeProgram = reinterpret_cast<ur_native_handle_t>(nativeHandle);
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto phProgram = reinterpret_cast<ur_program_handle_t *>(program);
+
+  HANDLE_ERRORS(
+      urProgramCreateWithNativeHandle(hNativeProgram, hContext, phProgram));
+
+  return PI_SUCCESS;
+}
+// Program
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// Kernel
+inline pi_result piKernelCreate(pi_program program, const char *kernel_name,
+                                pi_kernel *kernel) {
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  auto phKernel = reinterpret_cast<ur_kernel_handle_t *>(kernel);
+  HANDLE_ERRORS(urKernelCreate(hProgram, kernel_name, phKernel));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelSetArg(pi_kernel kernel, pi_uint32 arg_index,
+                                size_t arg_size, const void *arg_value) {
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  HANDLE_ERRORS(urKernelSetArgValue(hKernel, arg_index, arg_size, arg_value));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelGetInfo(pi_kernel kernel, pi_kernel_info param_name,
+                                 size_t param_value_size, void *param_value,
+                                 size_t *param_value_size_ret) {
+  static std::unordered_map<pi_kernel_info, ur_kernel_info_t> InfoMapping = {
+      {PI_KERNEL_INFO_FUNCTION_NAME, UR_KERNEL_INFO_FUNCTION_NAME},
+      {PI_KERNEL_INFO_NUM_ARGS, UR_KERNEL_INFO_NUM_ARGS},
+      {PI_KERNEL_INFO_REFERENCE_COUNT, UR_KERNEL_INFO_REFERENCE_COUNT},
+      {PI_KERNEL_INFO_CONTEXT, UR_KERNEL_INFO_CONTEXT},
+      {PI_KERNEL_INFO_PROGRAM, UR_KERNEL_INFO_PROGRAM},
+      {PI_KERNEL_INFO_ATTRIBUTES, UR_KERNEL_INFO_ATTRIBUTES}};
+
+  auto InfoType = InfoMapping.find(param_name);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  HANDLE_ERRORS(urKernelGetInfo(hKernel, InfoType->second, param_value_size,
+                                param_value, param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelGetGroupInfo(pi_kernel kernel, pi_device device,
+                                      pi_kernel_group_info param_name,
+                                      size_t param_value_size,
+                                      void *param_value,
+                                      size_t *param_value_size_ret) {
+  static std::unordered_map<pi_kernel_group_info, ur_kernel_group_info_t>
+      InfoMapping = {
+          {PI_KERNEL_GROUP_INFO_WORK_GROUP_SIZE,
+           UR_KERNEL_GROUP_INFO_WORK_GROUP_SIZE},
+          {PI_KERNEL_GROUP_INFO_COMPILE_WORK_GROUP_SIZE,
+           UR_KERNEL_GROUP_INFO_COMPILE_WORK_GROUP_SIZE},
+          {PI_KERNEL_GROUP_INFO_LOCAL_MEM_SIZE,
+           UR_KERNEL_GROUP_INFO_LOCAL_MEM_SIZE},
+          {PI_KERNEL_GROUP_INFO_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+           UR_KERNEL_GROUP_INFO_PREFERRED_WORK_GROUP_SIZE_MULTIPLE},
+          {PI_KERNEL_GROUP_INFO_PRIVATE_MEM_SIZE,
+           UR_KERNEL_GROUP_INFO_PRIVATE_MEM_SIZE},
+      };
+
+  auto InfoType = InfoMapping.find(param_name);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  HANDLE_ERRORS(urKernelGetGroupInfo(hKernel, hDevice, InfoType->second,
+                                     param_value_size, param_value,
+                                     param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelGetSubGroupInfo(
+    pi_kernel kernel, pi_device device, pi_kernel_sub_group_info param_name,
+    size_t input_value_size, const void *input_value, size_t param_value_size,
+    void *param_value, size_t *param_value_size_ret) {
+  // Ignore unused parameters
+  (void)input_value_size;
+  (void)input_value;
+
+  static std::unordered_map<pi_kernel_sub_group_info,
+                            ur_kernel_sub_group_info_t>
+      InfoMapping = {{PI_KERNEL_MAX_SUB_GROUP_SIZE,
+                      UR_KERNEL_SUB_GROUP_INFO_MAX_SUB_GROUP_SIZE},
+                     {PI_KERNEL_MAX_NUM_SUB_GROUPS,
+                      UR_KERNEL_SUB_GROUP_INFO_MAX_NUM_SUB_GROUPS},
+                     {PI_KERNEL_COMPILE_NUM_SUB_GROUPS,
+                      UR_KERNEL_SUB_GROUP_INFO_COMPILE_NUM_SUB_GROUPS},
+                     {PI_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL,
+                      UR_KERNEL_SUB_GROUP_INFO_SUB_GROUP_SIZE_INTEL}};
+
+  auto InfoType = InfoMapping.find(param_name);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  HANDLE_ERRORS(urKernelGetSubGroupInfo(hKernel, hDevice, InfoType->second,
+                                        param_value_size, param_value,
+                                        param_value_size_ret));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelRetain(pi_kernel kernel) {
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  HANDLE_ERRORS(urKernelRetain(hKernel));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelRelease(pi_kernel kernel) {
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  HANDLE_ERRORS(urKernelRelease(hKernel));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelSetExecInfo(pi_kernel kernel,
+                                     pi_kernel_exec_info param_name,
+                                     size_t param_value_size,
+                                     const void *param_value) {
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+
+  static std::unordered_map<pi_kernel_exec_info, ur_kernel_exec_info_t>
+      InfoMapping = {
+          {PI_USM_INDIRECT_ACCESS, UR_KERNEL_EXEC_INFO_USM_INDIRECT_ACCESS},
+          {PI_USM_PTRS, UR_KERNEL_EXEC_INFO_USM_PTRS}};
+
+  auto InfoType = InfoMapping.find(param_name);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  HANDLE_ERRORS(urKernelSetExecInfo(hKernel, InfoType->second, param_value_size,
+                                    param_value));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextProgramSetSpecializationConstant(pi_program program,
+                                                       pi_uint32 spec_id,
+                                                       size_t spec_size,
+                                                       const void *spec_value) {
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+
+  ur_specialization_constant_info_t pSpecConstant{};
+  pSpecConstant.id = spec_id;
+  pSpecConstant.size = spec_size;
+  pSpecConstant.pValue = spec_value;
+
+  HANDLE_ERRORS(
+      urProgramSetSpecializationConstants(hProgram, 1, &pSpecConstant));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelSetArgPointer(pi_kernel kernel, pi_uint32 arg_index,
+                                       size_t arg_size, const void *arg_value) {
+  (void)arg_size;
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  HANDLE_ERRORS(urKernelSetArgPointer(hKernel, arg_index, arg_value));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piKernelGetNativeHandle(pi_kernel kernel,
+                                         pi_native_handle *nativeHandle) {
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  auto phNativeHandle = reinterpret_cast<ur_native_handle_t *>(nativeHandle);
+  HANDLE_ERRORS(urKernelGetNativeHandle(hKernel, phNativeHandle));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piextKernelCreateWithNativeHandle(pi_native_handle native_handle,
+                                  pi_context context, pi_program program,
+                                  bool own_native_handle, pi_kernel *kernel) {
+  (void)program;
+  (void)own_native_handle;
+
+  auto hNativeKernel = reinterpret_cast<ur_native_handle_t>(native_handle);
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto phKernel = reinterpret_cast<ur_kernel_handle_t *>(kernel);
+
+  HANDLE_ERRORS(
+      urKernelCreateWithNativeHandle(hNativeKernel, hContext, phKernel));
+
+  return PI_SUCCESS;
+}
+// Kernel
+///////////////////////////////////////////////////////////////////////////////
 } // namespace pi2ur

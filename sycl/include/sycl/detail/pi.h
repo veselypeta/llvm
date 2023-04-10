@@ -851,12 +851,6 @@ static const uint8_t PI_DEVICE_BINARY_OFFLOAD_KIND_SYCL = 4;
 /// PropertySetRegistry::SYCL_HOST_PIPES defined in PropertySetIO.h
 #define __SYCL_PI_PROPERTY_SET_SYCL_HOST_PIPES "SYCL/host pipes"
 
-/// Program metadata tags recognized by the PI backends. For kernels the tag
-/// must appear after the kernel name.
-#define __SYCL_PI_PROGRAM_METADATA_TAG_REQD_WORK_GROUP_SIZE                    \
-  "@reqd_work_group_size"
-#define __SYCL_PI_PROGRAM_METADATA_GLOBAL_ID_MAPPING "@global_id_mapping"
-
 /// This struct is a record of the device binary information. If the Kind field
 /// denotes a portable binary type (SPIR-V or LLVM IR), the DeviceTargetSpec
 /// field can still be specific and denote e.g. FPGA target. It must match the

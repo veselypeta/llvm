@@ -67,6 +67,12 @@ const int UR_EXT_USM_CAPS_ATOMIC_ACCESS = 1 << 1;
 const int UR_EXT_USM_CAPS_CONCURRENT_ACCESS = 1 << 2;
 const int UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS = 1 << 3;
 
+/// Program metadata tags recognized by the UR adapters. For kernels the tag
+/// must appear after the kernel name.
+#define __SYCL_UR_PROGRAM_METADATA_TAG_REQD_WORK_GROUP_SIZE                    \
+  "@reqd_work_group_size"
+#define __SYCL_UR_PROGRAM_METADATA_GLOBAL_ID_MAPPING "@global_id_mapping"
+
 // Terminates the process with a catastrophic error message.
 [[noreturn]] inline void die(const char *Message) {
   std::cerr << "die: " << Message << std::endl;
