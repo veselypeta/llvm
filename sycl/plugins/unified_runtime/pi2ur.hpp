@@ -1306,6 +1306,8 @@ inline pi_result piKernelGetGroupInfo(pi_kernel kernel, pi_device device,
                                       size_t *param_value_size_ret) {
   static std::unordered_map<pi_kernel_group_info, ur_kernel_group_info_t>
       InfoMapping = {
+          {PI_KERNEL_GROUP_INFO_GLOBAL_WORK_SIZE,
+           UR_KERNEL_GROUP_INFO_GLOBAL_WORK_SIZE},
           {PI_KERNEL_GROUP_INFO_WORK_GROUP_SIZE,
            UR_KERNEL_GROUP_INFO_WORK_GROUP_SIZE},
           {PI_KERNEL_GROUP_INFO_COMPILE_WORK_GROUP_SIZE,
