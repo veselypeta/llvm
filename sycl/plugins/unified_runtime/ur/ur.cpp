@@ -42,3 +42,10 @@ ur_result_t zerPluginGetLastError(char **message) {
   *message = &ErrorMessage[0];
   return ErrorMessageCode;
 }
+
+// Returns plugin specific error and warning messages; common implementation
+// that can be shared between adapters
+ur_result_t urGetLastResult(ur_platform_handle_t, const char **ppMessage) {
+  *ppMessage = &ErrorMessage[0];
+  return ErrorMessageCode;
+}

@@ -399,6 +399,11 @@ inline pi_result ur2piDeviceInfoValue(ur_device_info_t ParamName,
 
 namespace pi2ur {
 
+inline pi_result piTearDown(void *) {
+  HANDLE_ERRORS(urTearDown(nullptr));
+  return PI_SUCCESS;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Platform
 inline pi_result piPlatformsGet(pi_uint32 num_entries, pi_platform *platforms,
@@ -450,7 +455,20 @@ inline pi_result piPlatformGetInfo(pi_platform platform,
   return PI_SUCCESS;
 }
 
-inline pi_result piPluginGetLastError(char **) { return PI_SUCCESS; }
+inline pi_result piPluginGetLastError(char **ppMesage) {
+  // PI doesn't take a platform, but UR does. For now just get the first
+  // platform, which should be fine to do for the existing plugins.
+  ur_platform_handle_t hPlatform;
+  urPlatformGet(1, &hPlatform, nullptr);
+
+  if (hPlatform) {
+    HANDLE_ERRORS(
+        urGetLastResult(hPlatform, const_cast<const char **>(ppMesage)));
+  }
+
+  // No platforms means no error was set, so we can return success
+  return PI_SUCCESS;
+}
 
 // Platform
 ///////////////////////////////////////////////////////////////////////////////
@@ -902,6 +920,13 @@ inline pi_result piDevicePartition(
   auto phSubDevices = reinterpret_cast<ur_device_handle_t *>(SubDevices);
   HANDLE_ERRORS(urDevicePartition(hDevice, UrProperties, NumEntries,
                                   phSubDevices, NumSubDevices));
+  return PI_SUCCESS;
+}
+
+inline pi_result piGetDeviceAndHostTimer(pi_device Device, uint64_t *DeviceTime,
+                                         uint64_t *HostTime) {
+  auto UrDevice = reinterpret_cast<ur_device_handle_t>(Device);
+  HANDLE_ERRORS(urDeviceGetGlobalTimestamps(UrDevice, DeviceTime, HostTime));
   return PI_SUCCESS;
 }
 
