@@ -165,9 +165,9 @@ UR_DLLEXPORT ur_result_t UR_APICALL urGetEnqueueProcAddrTable(
   }
   pDdiTable->pfnDeviceGlobalVariableRead = nullptr;
   pDdiTable->pfnDeviceGlobalVariableWrite = nullptr;
-  pDdiTable->pfnEventsWait = nullptr;
-  pDdiTable->pfnEventsWaitWithBarrier = nullptr;
-  pDdiTable->pfnKernelLaunch = nullptr;
+  pDdiTable->pfnEventsWait = urEnqueueEventsWait;
+  pDdiTable->pfnEventsWaitWithBarrier = urEnqueueEventsWaitWithBarrier;
+  pDdiTable->pfnKernelLaunch = urEnqueueKernelLaunch;
   pDdiTable->pfnMemBufferCopy = nullptr;
   pDdiTable->pfnMemBufferCopyRect = nullptr;
   pDdiTable->pfnMemBufferFill = nullptr;

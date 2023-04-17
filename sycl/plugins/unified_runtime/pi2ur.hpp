@@ -1808,4 +1808,41 @@ inline pi_result piEnqueueEventsWait(pi_queue command_queue,
 // Event
 ///////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////////////////
+// Enqueue
+inline pi_result piEnqueueKernelLaunch(
+    pi_queue queue, pi_kernel kernel, pi_uint32 work_dim,
+    const size_t *global_work_offset, const size_t *global_work_size,
+    const size_t *local_work_size, pi_uint32 num_events_in_wait_list,
+    const pi_event *event_wait_list, pi_event *event) {
+
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueKernelLaunch(
+      hQueue, hKernel, work_dim, global_work_offset, global_work_size,
+      local_work_size, num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEnqueueEventsWaitWithBarrier(
+    pi_queue command_queue, pi_uint32 num_events_in_wait_list,
+    const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueEventsWaitWithBarrier(hQueue, num_events_in_wait_list,
+                                               phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+// Enqueue
+///////////////////////////////////////////////////////////////////////////////
+
 } // namespace pi2ur
