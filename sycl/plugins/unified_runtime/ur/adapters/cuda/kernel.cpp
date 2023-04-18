@@ -290,17 +290,8 @@ urKernelSetExecInfo(ur_kernel_handle_t hKernel, ur_kernel_exec_info_t propName,
   return UR_RESULT_SUCCESS;
 }
 
-UR_APIEXPORT ur_result_t UR_APICALL urProgramSetSpecializationConstants(
-    ur_program_handle_t, uint32_t, const ur_specialization_constant_info_t *) {
-  // This entry point is only used for native specialization constants (SPIR-V),
-  // and the CUDA plugin is AOT only so this entry point is not supported.
-  sycl::detail::ur::die("Native specialization constants are not supported");
-  return {};
-}
-
 UR_APIEXPORT ur_result_t UR_APICALL urKernelCreateWithNativeHandle(
     ur_native_handle_t hNativeKernel, ur_context_handle_t hContext,
     ur_kernel_handle_t *phKernel) {
-  sycl::detail::ur::die("Unsupported operation");
-  return UR_RESULT_SUCCESS;
+  return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }

@@ -1281,6 +1281,23 @@ piextProgramCreateWithNativeHandle(pi_native_handle nativeHandle,
 
   return PI_SUCCESS;
 }
+
+inline pi_result piextProgramSetSpecializationConstant(pi_program program,
+                                                       pi_uint32 spec_id,
+                                                       size_t spec_size,
+                                                       const void *spec_value) {
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+
+  ur_specialization_constant_info_t pSpecConstant{};
+  pSpecConstant.id = spec_id;
+  pSpecConstant.size = spec_size;
+  pSpecConstant.pValue = spec_value;
+
+  HANDLE_ERRORS(
+      urProgramSetSpecializationConstants(hProgram, 1, &pSpecConstant));
+
+  return PI_SUCCESS;
+}
 // Program
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1426,23 +1443,6 @@ inline pi_result piKernelSetExecInfo(pi_kernel kernel,
 
   HANDLE_ERRORS(urKernelSetExecInfo(hKernel, InfoType->second, param_value_size,
                                     param_value));
-
-  return PI_SUCCESS;
-}
-
-inline pi_result piextProgramSetSpecializationConstant(pi_program program,
-                                                       pi_uint32 spec_id,
-                                                       size_t spec_size,
-                                                       const void *spec_value) {
-  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
-
-  ur_specialization_constant_info_t pSpecConstant{};
-  pSpecConstant.id = spec_id;
-  pSpecConstant.size = spec_size;
-  pSpecConstant.pValue = spec_value;
-
-  HANDLE_ERRORS(
-      urProgramSetSpecializationConstants(hProgram, 1, &pSpecConstant));
 
   return PI_SUCCESS;
 }
