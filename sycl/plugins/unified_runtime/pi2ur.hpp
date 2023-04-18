@@ -1086,11 +1086,14 @@ inline pi_result piextContextCreateWithNativeHandle(
 
   auto hNativeHandle = reinterpret_cast<ur_native_handle_t>(nativeHandle);
   auto phContext = reinterpret_cast<ur_context_handle_t *>(context);
+  auto phDevices = reinterpret_cast<const ur_device_handle_t *>(devices);
 
-  // Note that we ignore the devices and ownership arguments here. This is
-  // enough for CUDA, HIP and OpenCL.
+  ur_context_native_properties_t properties{
+      UR_STRUCTURE_TYPE_CONTEXT_NATIVE_PROPERTIES, nullptr,
+      pluginOwnsNativeHandle};
 
-  HANDLE_ERRORS(urContextCreateWithNativeHandle(hNativeHandle, phContext));
+  HANDLE_ERRORS(urContextCreateWithNativeHandle(
+      hNativeHandle, numDevices, phDevices, &properties, phContext));
 
   return PI_SUCCESS;
 }
@@ -1510,10 +1513,14 @@ piextKernelCreateWithNativeHandle(pi_native_handle native_handle,
 
   auto hNativeKernel = reinterpret_cast<ur_native_handle_t>(native_handle);
   auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
   auto phKernel = reinterpret_cast<ur_kernel_handle_t *>(kernel);
 
-  HANDLE_ERRORS(
-      urKernelCreateWithNativeHandle(hNativeKernel, hContext, phKernel));
+  ur_kernel_native_properties_t properties{
+      UR_STRUCTURE_TYPE_KERNEL_NATIVE_PROPERTIES, nullptr, own_native_handle};
+
+  HANDLE_ERRORS(urKernelCreateWithNativeHandle(
+      hNativeKernel, hContext, hProgram, &properties, phKernel));
 
   return PI_SUCCESS;
 }
@@ -1987,13 +1994,11 @@ inline pi_result piSamplerRelease(pi_sampler Sampler) {
 
   return PI_SUCCESS;
 }
-
 // Sampler
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
 // Memory
-
 inline pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags,
                                    size_t size, void *host_ptr, pi_mem *ret_mem,
                                    const pi_mem_properties *properties) {
@@ -2047,14 +2052,12 @@ inline pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags,
 inline pi_result piMemRetain(pi_mem mem) {
   auto hMem = reinterpret_cast<ur_mem_handle_t>(mem);
   HANDLE_ERRORS(urMemRetain(hMem));
-
   return PI_SUCCESS;
 }
 
 inline pi_result piMemRelease(pi_mem memObj) {
   auto hMem = reinterpret_cast<ur_mem_handle_t>(memObj);
   HANDLE_ERRORS(urMemRelease(hMem));
-
   return PI_SUCCESS;
 }
 
@@ -2063,6 +2066,13 @@ inline pi_result piextMemGetNativeHandle(pi_mem mem,
   auto hMem = reinterpret_cast<ur_mem_handle_t>(mem);
   auto hNativeHandle = reinterpret_cast<ur_native_handle_t *>(nativeHandle);
   HANDLE_ERRORS(urMemGetNativeHandle(hMem, hNativeHandle));
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMFree(pi_context context, void *ptr) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+
+  HANDLE_ERRORS(urUSMFree(hContext, ptr));
 
   return PI_SUCCESS;
 }
@@ -2083,7 +2093,6 @@ inline pi_result piMemGetInfo(pi_mem mem, pi_mem_info memInfo, size_t size,
 
   HANDLE_ERRORS(
       urMemGetInfo(hMem, MemInfoMapIt->second, size, pMemInfo, pMemInfoSize));
-
   return PI_SUCCESS;
 }
 
@@ -2197,9 +2206,8 @@ inline pi_result piMemImageCreate(pi_context context, pi_mem_flags flags,
       image_desc->image_slice_pitch, image_desc->num_mip_levels,
       image_desc->num_samples};
 
-  HANDLE_ERRORS(urMemImageCreate(hContext, urFlags, &urImageFormat, &urImageDesc,
-                                 host_ptr, phMem));
-
+  HANDLE_ERRORS(urMemImageCreate(hContext, urFlags, &urImageFormat,
+                                 &urImageDesc, host_ptr, phMem));
   return PI_SUCCESS;
 }
 
@@ -2224,7 +2232,6 @@ inline pi_result piMemImageGetInfo(pi_mem mem, pi_image_info info, size_t size,
 
   HANDLE_ERRORS(urMemImageGetInfo(hMem, ImageInfoMapIt->second, size, pImgInfo,
                                   ret_size));
-
   return PI_SUCCESS;
 }
 
@@ -2253,8 +2260,247 @@ inline pi_result piMemBufferPartition(pi_mem parent_buffer, pi_mem_flags flags,
 
   return PI_SUCCESS;
 }
-
 // Memory
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// USM
+inline pi_result piextUSMHostAlloc(void **result_ptr, pi_context context,
+                                   pi_usm_mem_properties *properties,
+                                   size_t size, pi_uint32 alignment) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+
+  ur_usm_desc_t USMDesc{};
+  USMDesc.stype = UR_STRUCTURE_TYPE_USM_DESC;
+  USMDesc.align = alignment;
+
+  HANDLE_ERRORS(urUSMHostAlloc(hContext, &USMDesc, nullptr, size, result_ptr));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMDeviceAlloc(void **result_ptr, pi_context context,
+                                     pi_device device,
+                                     pi_usm_mem_properties *properties,
+                                     size_t size, pi_uint32 alignment) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
+
+  ur_usm_desc_t USMDesc{};
+  USMDesc.stype = UR_STRUCTURE_TYPE_USM_DESC;
+  USMDesc.align = alignment;
+
+  HANDLE_ERRORS(
+      urUSMDeviceAlloc(hContext, hDevice, &USMDesc, nullptr, size, result_ptr));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMSharedAlloc(void **result_ptr, pi_context context,
+                                     pi_device device,
+                                     pi_usm_mem_properties *properties,
+                                     size_t size, pi_uint32 alignment) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
+
+  ur_usm_desc_t USMDesc{};
+  USMDesc.stype = UR_STRUCTURE_TYPE_USM_DESC;
+  USMDesc.align = alignment;
+
+  HANDLE_ERRORS(
+      urUSMSharedAlloc(hContext, hDevice, &USMDesc, nullptr, size, result_ptr));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMEnqueueMemset(pi_queue queue, void *ptr,
+                                       pi_int32 value, size_t count,
+                                       pi_uint32 num_events_in_waitlist,
+                                       const pi_event *events_waitlist,
+                                       pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueUSMFill(hQueue, ptr, 1, &value, count,
+                                 num_events_in_waitlist, phEventWaitList,
+                                 phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMEnqueueMemcpy(pi_queue queue, pi_bool blocking,
+                                       void *dst_ptr, const void *src_ptr,
+                                       size_t size,
+                                       pi_uint32 num_events_in_waitlist,
+                                       const pi_event *events_waitlist,
+                                       pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueUSMMemcpy(hQueue, blocking, dst_ptr, src_ptr, size,
+                                   num_events_in_waitlist, phEventWaitList,
+                                   phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMEnqueuePrefetch(pi_queue queue, const void *ptr,
+                                         size_t size,
+                                         pi_usm_migration_flags flags,
+                                         pi_uint32 num_events_in_waitlist,
+                                         const pi_event *events_waitlist,
+                                         pi_event *event) {
+  (void)flags;
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  // PI does not implement migration flags atm, and UR have only one default
+  // migration flag.
+  ur_usm_migration_flags_t urFlags{};
+
+  HANDLE_ERRORS(urEnqueueUSMPrefetch(hQueue, ptr, size, urFlags,
+                                     num_events_in_waitlist, phEventWaitList,
+                                     phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline ur_usm_advice_flags_t
+ConvertMemAdviseFlagsBitfield(pi_mem_advice flags) {
+  ur_usm_advice_flags_t Flags{};
+  static std::unordered_map<pi_mem_advice, ur_usm_advice_flags_t> FlagMap = {
+      {PI_MEM_ADVICE_CUDA_SET_READ_MOSTLY, UR_USM_ADVICE_FLAG_SET_READ_MOSTLY},
+      {PI_MEM_ADVICE_CUDA_UNSET_READ_MOSTLY,
+       UR_USM_ADVICE_FLAG_CLEAR_READ_MOSTLY},
+      {PI_MEM_ADVICE_CUDA_SET_PREFERRED_LOCATION,
+       UR_USM_ADVICE_FLAG_SET_PREFERRED_LOCATION},
+      {PI_MEM_ADVICE_CUDA_UNSET_PREFERRED_LOCATION,
+       UR_USM_ADVICE_FLAG_CLEAR_PREFERRED_LOCATION},
+      {PI_MEM_ADVICE_RESET, UR_USM_ADVICE_FLAG_DEFAULT}};
+  for (auto &FlagPair : FlagMap) {
+    if (flags & FlagPair.first) {
+      Flags |= FlagPair.second;
+    }
+  }
+
+  return Flags;
+}
+
+inline pi_result piextUSMEnqueueMemAdvise(pi_queue queue, const void *ptr,
+                                          size_t length, pi_mem_advice advice,
+                                          pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  ur_usm_advice_flags_t ur_advice = ConvertMemAdviseFlagsBitfield(advice);
+
+  HANDLE_ERRORS(urEnqueueUSMAdvise(hQueue, ptr, length, ur_advice, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMEnqueueFill2D(pi_queue queue, void *ptr, size_t pitch,
+                                       size_t pattern_size, const void *pattern,
+                                       size_t width, size_t height,
+                                       pi_uint32 num_events_in_waitlist,
+                                       const pi_event *events_waitlist,
+                                       pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueUSMFill2D(hQueue, ptr, pitch, pattern_size, pattern,
+                                   width, height, num_events_in_waitlist,
+                                   phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMEnqueueMemset2D(pi_queue queue, void *ptr,
+                                         size_t pitch, int value, size_t width,
+                                         size_t height,
+                                         pi_uint32 num_events_in_waitlist,
+                                         const pi_event *events_waitlist,
+                                         pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueUSMFill2D(hQueue, ptr, pitch, 1, &value, width, height,
+                                   num_events_in_waitlist, phEventWaitList,
+                                   phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMEnqueueMemcpy2D(pi_queue queue, pi_bool blocking,
+                                         void *dst_ptr, size_t dst_pitch,
+                                         const void *src_ptr, size_t src_pitch,
+                                         size_t width, size_t height,
+                                         pi_uint32 num_events_in_waitlist,
+                                         const pi_event *events_waitlist,
+                                         pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueUSMMemcpy2D(
+      hQueue, blocking, dst_ptr, dst_pitch, src_ptr, src_pitch, width, height,
+      num_events_in_waitlist, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextUSMGetMemAllocInfo(pi_context context, const void *ptr,
+                                         pi_mem_alloc_info param_name,
+                                         size_t param_value_size,
+                                         void *param_value,
+                                         size_t *param_value_size_ret) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+
+  std::unordered_map<pi_mem_alloc_info, ur_usm_alloc_info_t> InfoMap = {
+      {PI_MEM_ALLOC_TYPE, UR_USM_ALLOC_INFO_TYPE},
+      {PI_MEM_ALLOC_BASE_PTR, UR_USM_ALLOC_INFO_BASE_PTR},
+      {PI_MEM_ALLOC_SIZE, UR_USM_ALLOC_INFO_SIZE},
+      {PI_MEM_ALLOC_DEVICE, UR_USM_ALLOC_INFO_DEVICE},
+  };
+  auto InfoMapIt = InfoMap.find(param_name);
+  if (InfoMapIt == InfoMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  HANDLE_ERRORS(urUSMGetMemAllocInfo(hContext, ptr, InfoMapIt->second,
+                                     param_value_size, param_value,
+                                     param_value_size_ret));
+
+  if (InfoMapIt->second == UR_USM_ALLOC_INFO_TYPE) {
+    std::unordered_map<ur_usm_type_t, pi_usm_type> RetTypeMap = {
+        {UR_USM_TYPE_UNKNOWN, PI_MEM_TYPE_UNKNOWN},
+        {UR_USM_TYPE_DEVICE, PI_MEM_TYPE_DEVICE},
+        {UR_USM_TYPE_HOST, PI_MEM_TYPE_HOST},
+        {UR_USM_TYPE_SHARED, PI_MEM_TYPE_SHARED},
+    };
+    auto ur_mem_type = reinterpret_cast<ur_usm_type_t *>(param_value);
+    auto RetTypeMapIt = RetTypeMap.find(*ur_mem_type);
+    if (RetTypeMapIt == RetTypeMap.end()) {
+      return PI_ERROR_UNKNOWN;
+    }
+    auto pi_mem_type = reinterpret_cast<pi_usm_type *>(param_value);
+    *pi_mem_type = RetTypeMapIt->second;
+  }
+
+  return PI_SUCCESS;
+}
+// USM
 ///////////////////////////////////////////////////////////////////////////////
 
 } // namespace pi2ur

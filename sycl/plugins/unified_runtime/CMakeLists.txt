@@ -4,7 +4,7 @@ if (NOT DEFINED UNIFIED_RUNTIME_LIBRARY OR NOT DEFINED UNIFIED_RUNTIME_INCLUDE_D
   include(FetchContent)
 
   set(UNIFIED_RUNTIME_REPO "https://github.com/oneapi-src/unified-runtime.git")
-  set(UNIFIED_RUNTIME_TAG 74843ea0800e6fb7ce0f82e0ef991fc258f4b9bd)
+  set(UNIFIED_RUNTIME_TAG 49b621d9a5bffe66d2930d8d8d4ed4825028bdbb)
 
   message(STATUS "Will fetch Unified Runtime from ${UNIFIED_RUNTIME_REPO}")
   FetchContent_Declare(unified-runtime
@@ -147,10 +147,11 @@ add_sycl_library("ur_adapter_cuda" SHARED
     "ur/adapters/cuda/queue.hpp"
     "ur/adapters/cuda/sampler.cpp"
     "ur/adapters/cuda/sampler.hpp"
-    "ur/adapters/cuda/ur_interface_loader.cpp"
-    "ur/adapters/cuda/tracing.cpp"
     "ur/adapters/cuda/memory.cpp"
     "ur/adapters/cuda/memory.hpp"
+    "ur/adapters/cuda/usm.cpp"
+    "ur/adapters/cuda/ur_interface_loader.cpp"
+    "ur/adapters/cuda/tracing.cpp"
   INCLUDE_DIRS
     ${sycl_inc_dir}
   LIBRARIES

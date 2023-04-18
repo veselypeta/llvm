@@ -292,6 +292,8 @@ urKernelSetExecInfo(ur_kernel_handle_t hKernel, ur_kernel_exec_info_t propName,
 
 UR_APIEXPORT ur_result_t UR_APICALL urKernelCreateWithNativeHandle(
     ur_native_handle_t hNativeKernel, ur_context_handle_t hContext,
+    ur_program_handle_t hProgram,
+    const ur_kernel_native_properties_t *pProperties,
     ur_kernel_handle_t *phKernel) {
   return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }
