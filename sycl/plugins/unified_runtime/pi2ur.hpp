@@ -1845,4 +1845,114 @@ inline pi_result piEnqueueEventsWaitWithBarrier(
 // Enqueue
 ///////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////////////////
+// Sampler
+inline pi_result piSamplerCreate(pi_context Context,
+                                 const pi_sampler_properties *SamplerProperties,
+                                 pi_sampler *RetSampler) {
+  PI_ASSERT(Context, PI_ERROR_INVALID_CONTEXT);
+  PI_ASSERT(RetSampler, PI_ERROR_INVALID_VALUE);
+
+  ur_context_handle_t UrContext =
+      reinterpret_cast<ur_context_handle_t>(Context);
+  ur_sampler_desc_t UrProps{};
+  UrProps.stype = UR_STRUCTURE_TYPE_SAMPLER_DESC;
+  const pi_sampler_properties *CurProperty = SamplerProperties;
+  while (*CurProperty != 0) {
+    switch (*CurProperty) {
+    case PI_SAMPLER_PROPERTIES_NORMALIZED_COORDS: {
+      UrProps.normalizedCoords = static_cast<pi_bool>(*(++CurProperty));
+    } break;
+
+    case PI_SAMPLER_PROPERTIES_ADDRESSING_MODE: {
+      pi_sampler_addressing_mode CurValueAddressingMode =
+          static_cast<pi_sampler_addressing_mode>(*(++CurProperty));
+
+      if (CurValueAddressingMode == PI_SAMPLER_ADDRESSING_MODE_MIRRORED_REPEAT)
+        UrProps.addressingMode = UR_SAMPLER_ADDRESSING_MODE_MIRRORED_REPEAT;
+      else if (CurValueAddressingMode == PI_SAMPLER_ADDRESSING_MODE_REPEAT)
+        UrProps.addressingMode = UR_SAMPLER_ADDRESSING_MODE_REPEAT;
+      else if (CurValueAddressingMode ==
+               PI_SAMPLER_ADDRESSING_MODE_CLAMP_TO_EDGE)
+        UrProps.addressingMode = UR_SAMPLER_ADDRESSING_MODE_CLAMP_TO_EDGE;
+      else if (CurValueAddressingMode == PI_SAMPLER_ADDRESSING_MODE_CLAMP)
+        UrProps.addressingMode = UR_SAMPLER_ADDRESSING_MODE_CLAMP;
+      else if (CurValueAddressingMode == PI_SAMPLER_ADDRESSING_MODE_NONE)
+        UrProps.addressingMode = UR_SAMPLER_ADDRESSING_MODE_NONE;
+    } break;
+
+    case PI_SAMPLER_PROPERTIES_FILTER_MODE: {
+      pi_sampler_filter_mode CurValueFilterMode =
+          static_cast<pi_sampler_filter_mode>(*(++CurProperty));
+
+      if (CurValueFilterMode == PI_SAMPLER_FILTER_MODE_NEAREST)
+        UrProps.filterMode = UR_SAMPLER_FILTER_MODE_NEAREST;
+      else if (CurValueFilterMode == PI_SAMPLER_FILTER_MODE_LINEAR)
+        UrProps.filterMode = UR_SAMPLER_FILTER_MODE_LINEAR;
+    } break;
+
+    default:
+      break;
+    }
+    CurProperty++;
+  }
+
+  ur_sampler_handle_t *UrSampler =
+      reinterpret_cast<ur_sampler_handle_t *>(RetSampler);
+
+  HANDLE_ERRORS(urSamplerCreate(UrContext, &UrProps, UrSampler));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piSamplerGetInfo(pi_sampler Sampler, pi_sampler_info ParamName,
+                                  size_t ParamValueSize, void *ParamValue,
+                                  size_t *ParamValueSizeRet) {
+  static std::unordered_map<pi_sampler_info, ur_sampler_info_t> InfoMapping = {
+      {PI_SAMPLER_INFO_REFERENCE_COUNT, UR_SAMPLER_INFO_REFERENCE_COUNT},
+      {PI_SAMPLER_INFO_CONTEXT, UR_SAMPLER_INFO_CONTEXT},
+      {PI_SAMPLER_INFO_NORMALIZED_COORDS, UR_SAMPLER_INFO_NORMALIZED_COORDS},
+      {PI_SAMPLER_INFO_ADDRESSING_MODE, UR_SAMPLER_INFO_ADDRESSING_MODE},
+      {PI_SAMPLER_INFO_FILTER_MODE, UR_SAMPLER_INFO_FILTER_MODE},
+  };
+
+  auto InfoType = InfoMapping.find(ParamName);
+  if (InfoType == InfoMapping.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  size_t SizeInOut = ParamValueSize;
+  auto hSampler = reinterpret_cast<ur_sampler_handle_t>(Sampler);
+  HANDLE_ERRORS(urSamplerGetInfo(hSampler, InfoType->second, SizeInOut,
+                                 ParamValue, ParamValueSizeRet));
+  fixupInfoValueTypes(SizeInOut, ParamValueSizeRet, ParamValue);
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piSamplerRetain(pi_sampler Sampler) {
+  PI_ASSERT(Sampler, PI_ERROR_INVALID_SAMPLER);
+
+  ur_sampler_handle_t UrSampler =
+      reinterpret_cast<ur_sampler_handle_t>(Sampler);
+
+  HANDLE_ERRORS(urSamplerRetain(UrSampler));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piSamplerRelease(pi_sampler Sampler) {
+  PI_ASSERT(Sampler, PI_ERROR_INVALID_SAMPLER);
+
+  ur_sampler_handle_t UrSampler =
+      reinterpret_cast<ur_sampler_handle_t>(Sampler);
+
+  HANDLE_ERRORS(urSamplerRelease(UrSampler));
+
+  return PI_SUCCESS;
+}
+
+// Sampler
+///////////////////////////////////////////////////////////////////////////////
+
 } // namespace pi2ur
