@@ -254,7 +254,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urQueueCreateWithNativeHandle(
   ur_queue_flags_t flags = 0;
   if (cuFlags == CU_STREAM_DEFAULT)
     flags = __SYCL_UR_CUDA_USE_DEFAULT_STREAM;
-  else if (flags == CU_STREAM_NON_BLOCKING)
+  else if (cuFlags == CU_STREAM_NON_BLOCKING)
     flags = __SYCL_UR_CUDA_SYNC_WITH_DEFAULT;
   else
     sycl::detail::ur::die("Unknown cuda stream");
