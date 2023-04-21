@@ -13,7 +13,7 @@
 /// Sampler property layout:
 /// | 31 30 ... 6 5 |      4 3 2      |     1      |         0        |
 /// |      N/A      | addressing mode | fiter mode | normalize coords |
-struct ur_sampler_handle_t_ : _pi_object {
+struct ur_sampler_handle_t_ : _ur_object {
   std::atomic_uint32_t refCount_;
   uint32_t props_;
   ur_context_handle_t context_;

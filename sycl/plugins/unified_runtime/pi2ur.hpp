@@ -234,6 +234,42 @@ inline pi_result fixupInfoValueTypes(size_t ParamValueSizeUR,
   return PI_SUCCESS;
 }
 
+template <typename TypeOut, typename TypeFlag>
+inline pi_result
+ConvertInputBitfield(pi_bitfield in, TypeOut *out,
+                     const std::unordered_map<pi_bitfield, TypeFlag> &map) {
+  *out = 0;
+  for (auto &[FlagPI, FlagUR] : map) {
+    if (in & FlagPI) {
+      *out |= FlagUR;
+    }
+  }
+
+  return PI_SUCCESS;
+}
+
+// Convert bitfield flags from PI to UR for MemFlags
+inline pi_result pi2urMemFlags(pi_mem_flags piFlags, ur_mem_flags_t *urFlags) {
+  static const std::unordered_map<pi_mem_flags, ur_mem_flags_t> MemFlagsMap = {
+      {PI_MEM_FLAGS_ACCESS_RW, UR_MEM_FLAG_READ_WRITE},
+      {PI_MEM_ACCESS_READ_ONLY, UR_MEM_FLAG_READ_ONLY},
+      {PI_MEM_FLAGS_HOST_PTR_USE, UR_MEM_FLAG_USE_HOST_POINTER},
+      {PI_MEM_FLAGS_HOST_PTR_COPY, UR_MEM_FLAG_ALLOC_COPY_HOST_POINTER},
+      {PI_MEM_FLAGS_HOST_PTR_ALLOC, UR_MEM_FLAG_ALLOC_HOST_POINTER},
+  };
+
+  return ConvertInputBitfield(piFlags, urFlags, MemFlagsMap);
+}
+
+// Convert bitfield flags from PI to UR for MapFlags
+inline pi_result pi2urMapFlags(pi_mem_flags piFlags, ur_mem_flags_t *urFlags) {
+  static const std::unordered_map<pi_bitfield, ur_map_flag_t> MapFlagsMap = {
+      {PI_MAP_READ, UR_MAP_FLAG_READ},
+      {PI_MAP_WRITE, UR_MAP_FLAG_WRITE},
+  };
+  return ConvertInputBitfield(piFlags, urFlags, MapFlagsMap);
+}
+
 // Translate UR device info values to PI info values
 inline pi_result ur2piDeviceInfoValue(ur_device_info_t ParamName,
                                       size_t ParamValueSizePI,
@@ -1953,6 +1989,259 @@ inline pi_result piSamplerRelease(pi_sampler Sampler) {
 }
 
 // Sampler
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// Memory
+
+inline pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags,
+                                   size_t size, void *host_ptr, pi_mem *ret_mem,
+                                   const pi_mem_properties *properties) {
+  (void)properties;
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+
+  ur_mem_flags_t urFlags{};
+  pi2urMemFlags(flags, &urFlags);
+
+  ur_buffer_alloc_location_properties_t bufferLocationProperties {
+     UR_STRUCTURE_TYPE_BUFFER_ALLOC_LOCATION_PROPERTIES,
+     nullptr,
+     PI_MEM_PROPERTIES_ALLOC_BUFFER_LOCATION,
+  };
+
+  ur_buffer_channel_properties_t bufferChannelProperties {
+    UR_STRUCTURE_TYPE_BUFFER_CHANNEL_PROPERTIES,
+    &bufferLocationProperties,
+    PI_MEM_PROPERTIES_CHANNEL,
+  };
+  
+
+  ur_buffer_properties_t bufferProperties {
+    UR_STRUCTURE_TYPE_BUFFER_PROPERTIES,
+    &bufferChannelProperties,
+    host_ptr,
+  };
+
+  auto phRetMem = reinterpret_cast<ur_mem_handle_t *>(ret_mem);
+  HANDLE_ERRORS(urMemBufferCreate(hContext, urFlags, size, &bufferProperties, phRetMem));
+  return PI_SUCCESS;
+}
+
+inline pi_result piMemRetain(pi_mem mem) {
+  auto hMem = reinterpret_cast<ur_mem_handle_t>(mem);
+  HANDLE_ERRORS(urMemRetain(hMem));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piMemRelease(pi_mem memObj) {
+  auto hMem = reinterpret_cast<ur_mem_handle_t>(memObj);
+  HANDLE_ERRORS(urMemRelease(hMem));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextMemGetNativeHandle(pi_mem mem,
+                                        pi_native_handle *nativeHandle) {
+  auto hMem = reinterpret_cast<ur_mem_handle_t>(mem);
+  auto hNativeHandle = reinterpret_cast<ur_native_handle_t *>(nativeHandle);
+  HANDLE_ERRORS(urMemGetNativeHandle(hMem, hNativeHandle));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piMemGetInfo(pi_mem mem, pi_mem_info memInfo, size_t size,
+                              void *pMemInfo, size_t *pMemInfoSize) {
+  auto hMem = reinterpret_cast<ur_mem_handle_t>(mem);
+
+  static std::unordered_map<pi_mem_info, ur_mem_info_t> MemInfoMap = {
+      {PI_MEM_CONTEXT, UR_MEM_INFO_SIZE},
+      {PI_MEM_SIZE, UR_MEM_INFO_CONTEXT},
+  };
+
+  auto MemInfoMapIt = MemInfoMap.find(memInfo);
+  if (MemInfoMapIt == MemInfoMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  HANDLE_ERRORS(
+      urMemGetInfo(hMem, MemInfoMapIt->second, size, pMemInfo, pMemInfoSize));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piextMemCreateWithNativeHandle(pi_native_handle nativeHandle,
+                                                pi_context context,
+                                                bool ownNativeHandle,
+                                                pi_mem *mem) {
+  auto hNativeHandle = reinterpret_cast<ur_native_handle_t>(nativeHandle);
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hMem = reinterpret_cast<ur_mem_handle_t *>(mem);
+  (void)ownNativeHandle;
+  HANDLE_ERRORS(urMemCreateWithNativeHandle(hNativeHandle, hContext, hMem));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piMemImageCreate(pi_context context, pi_mem_flags flags,
+                                  const pi_image_format *image_format,
+                                  const pi_image_desc *image_desc,
+                                  void *host_ptr, pi_mem *ret_mem) {
+  auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto phMem = reinterpret_cast<ur_mem_handle_t *>(ret_mem);
+
+  ur_mem_flags_t urFlags{};
+  pi2urMemFlags(flags, &urFlags);
+
+  static std::unordered_map<pi_image_channel_order, ur_image_channel_order_t>
+    ImageChannelOrderMap = {
+        {PI_IMAGE_CHANNEL_ORDER_A, UR_IMAGE_CHANNEL_ORDER_A},
+        {PI_IMAGE_CHANNEL_ORDER_R, UR_IMAGE_CHANNEL_ORDER_R},
+        {PI_IMAGE_CHANNEL_ORDER_RG, UR_IMAGE_CHANNEL_ORDER_RG},
+        {PI_IMAGE_CHANNEL_ORDER_RA, UR_IMAGE_CHANNEL_ORDER_RA},
+        {PI_IMAGE_CHANNEL_ORDER_RGB, UR_IMAGE_CHANNEL_ORDER_RGB},
+        {PI_IMAGE_CHANNEL_ORDER_RGBA, UR_IMAGE_CHANNEL_ORDER_RGBA},
+        {PI_IMAGE_CHANNEL_ORDER_BGRA, UR_IMAGE_CHANNEL_ORDER_BGRA},
+        {PI_IMAGE_CHANNEL_ORDER_ARGB, UR_IMAGE_CHANNEL_ORDER_ARGB},
+        {PI_IMAGE_CHANNEL_ORDER_ABGR, UR_IMAGE_CHANNEL_ORDER_ABGR},
+        {PI_IMAGE_CHANNEL_ORDER_INTENSITY, UR_IMAGE_CHANNEL_ORDER_INTENSITY},
+        {PI_IMAGE_CHANNEL_ORDER_LUMINANCE, UR_IMAGE_CHANNEL_ORDER_LUMINANCE},
+        {PI_IMAGE_CHANNEL_ORDER_Rx, UR_IMAGE_CHANNEL_ORDER_RX},
+        {PI_IMAGE_CHANNEL_ORDER_RGx, UR_IMAGE_CHANNEL_ORDER_RGX},
+        {PI_IMAGE_CHANNEL_ORDER_RGBx, UR_IMAGE_CHANNEL_ORDER_RGBX},
+        {PI_IMAGE_CHANNEL_ORDER_sRGBA, UR_IMAGE_CHANNEL_ORDER_SRGBA},
+    };
+
+  const auto &ChannelOrderIt =
+      ImageChannelOrderMap.find(image_format->image_channel_order);
+  if (ChannelOrderIt == ImageChannelOrderMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+  ur_image_channel_order_t urImageChannelOrder = ChannelOrderIt->second;
+
+  static std::unordered_map<pi_image_channel_type, ur_image_channel_type_t>
+      ImageChannelTypeMap = {
+          {PI_IMAGE_CHANNEL_TYPE_SNORM_INT8, UR_IMAGE_CHANNEL_TYPE_SNORM_INT8},
+          {PI_IMAGE_CHANNEL_TYPE_SNORM_INT16,
+           UR_IMAGE_CHANNEL_TYPE_SNORM_INT16},
+          {PI_IMAGE_CHANNEL_TYPE_UNORM_INT8, UR_IMAGE_CHANNEL_TYPE_UNORM_INT8},
+          {PI_IMAGE_CHANNEL_TYPE_UNORM_INT16,
+           UR_IMAGE_CHANNEL_TYPE_UNORM_INT16},
+          {PI_IMAGE_CHANNEL_TYPE_UNORM_SHORT_565,
+           UR_IMAGE_CHANNEL_TYPE_UNORM_SHORT_565},
+          {PI_IMAGE_CHANNEL_TYPE_UNORM_SHORT_555,
+           UR_IMAGE_CHANNEL_TYPE_UNORM_SHORT_555},
+          {PI_IMAGE_CHANNEL_TYPE_UNORM_INT_101010,
+           UR_IMAGE_CHANNEL_TYPE_INT_101010},
+          {PI_IMAGE_CHANNEL_TYPE_SIGNED_INT8,
+           UR_IMAGE_CHANNEL_TYPE_SIGNED_INT8},
+          {PI_IMAGE_CHANNEL_TYPE_SIGNED_INT16,
+           UR_IMAGE_CHANNEL_TYPE_SIGNED_INT16},
+          {PI_IMAGE_CHANNEL_TYPE_SIGNED_INT32,
+           UR_IMAGE_CHANNEL_TYPE_SIGNED_INT32},
+          {PI_IMAGE_CHANNEL_TYPE_UNSIGNED_INT8,
+           UR_IMAGE_CHANNEL_TYPE_UNSIGNED_INT8},
+          {PI_IMAGE_CHANNEL_TYPE_UNSIGNED_INT16,
+           UR_IMAGE_CHANNEL_TYPE_UNSIGNED_INT16},
+          {PI_IMAGE_CHANNEL_TYPE_UNSIGNED_INT32,
+           UR_IMAGE_CHANNEL_TYPE_UNSIGNED_INT32},
+          {PI_IMAGE_CHANNEL_TYPE_HALF_FLOAT, UR_IMAGE_CHANNEL_TYPE_HALF_FLOAT},
+          {PI_IMAGE_CHANNEL_TYPE_FLOAT, UR_IMAGE_CHANNEL_TYPE_FLOAT},
+      };
+  const auto &ChannelTypeIt =
+      ImageChannelTypeMap.find(image_format->image_channel_data_type);
+  if (ChannelTypeIt == ImageChannelTypeMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+  ur_image_channel_type_t urImageChannelType = ChannelTypeIt->second;
+
+  ur_image_format_t urImageFormat { urImageChannelOrder, urImageChannelType };
+  
+  static std::unordered_map<pi_mem_type, ur_mem_type_t> ImageTypeMap = {
+      {PI_MEM_TYPE_BUFFER, UR_MEM_TYPE_BUFFER},
+      {PI_MEM_TYPE_IMAGE2D, UR_MEM_TYPE_IMAGE2D},
+      {PI_MEM_TYPE_IMAGE3D, UR_MEM_TYPE_IMAGE3D},
+      {PI_MEM_TYPE_IMAGE2D_ARRAY, UR_MEM_TYPE_IMAGE2D_ARRAY},
+      {PI_MEM_TYPE_IMAGE1D, UR_MEM_TYPE_IMAGE1D},
+      {PI_MEM_TYPE_IMAGE1D_ARRAY, UR_MEM_TYPE_IMAGE1D_ARRAY},
+      {PI_MEM_TYPE_IMAGE1D_BUFFER, UR_MEM_TYPE_IMAGE1D_BUFFER},
+  };
+  const auto &ImageTypeIt =
+      ImageTypeMap.find(image_desc->image_type);
+  if (ImageTypeIt == ImageTypeMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  ur_image_desc_t urImageDesc{
+      UR_STRUCTURE_TYPE_IMAGE_DESC,  nullptr,
+      ImageTypeIt->second,  image_desc->image_width,
+      image_desc->image_height,      image_desc->image_depth,
+      image_desc->image_array_size,  image_desc->image_row_pitch,
+      image_desc->image_slice_pitch, image_desc->num_mip_levels,
+      image_desc->num_samples};
+
+  HANDLE_ERRORS(urMemImageCreate(hContext, urFlags, &urImageFormat, &urImageDesc,
+                                 host_ptr, phMem));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piMemImageGetInfo(pi_mem mem, pi_image_info info, size_t size,
+                                   void *pImgInfo, size_t *ret_size) {
+  auto hMem = reinterpret_cast<ur_mem_handle_t>(mem);
+
+  static std::unordered_map<pi_image_info, ur_image_info_t> ImageInfoMap = {
+      {PI_IMAGE_INFO_FORMAT, UR_IMAGE_INFO_FORMAT},
+      {PI_IMAGE_INFO_ELEMENT_SIZE, UR_IMAGE_INFO_ELEMENT_SIZE},
+      {PI_IMAGE_INFO_ROW_PITCH, UR_IMAGE_INFO_ROW_PITCH},
+      {PI_IMAGE_INFO_SLICE_PITCH, UR_IMAGE_INFO_SLICE_PITCH},
+      {PI_IMAGE_INFO_WIDTH, UR_IMAGE_INFO_WIDTH},
+      {PI_IMAGE_INFO_HEIGHT, UR_IMAGE_INFO_HEIGHT},
+      {PI_IMAGE_INFO_DEPTH, UR_IMAGE_INFO_DEPTH},
+  };
+
+  auto ImageInfoMapIt = ImageInfoMap.find(info);
+  if (ImageInfoMapIt == ImageInfoMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  HANDLE_ERRORS(urMemImageGetInfo(hMem, ImageInfoMapIt->second, size, pImgInfo,
+                                  ret_size));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piMemBufferPartition(pi_mem parent_buffer, pi_mem_flags flags,
+                                      pi_buffer_create_type buffer_create_type,
+                                      void *buffer_create_info,
+                                      pi_mem *memObj) {
+  auto hParentBuffer = reinterpret_cast<ur_mem_handle_t>(parent_buffer);
+
+  ur_mem_flags_t urFlags{};
+  pi2urMemFlags(flags, &urFlags);
+
+  static std::unordered_map<pi_buffer_create_type, ur_buffer_create_type_t>
+      BufferCreateTypeMap = {
+          {PI_BUFFER_CREATE_TYPE_REGION, UR_BUFFER_CREATE_TYPE_REGION},
+      };
+
+  auto BufferCreateTypeIt = BufferCreateTypeMap.find(buffer_create_type);
+  if (BufferCreateTypeIt == BufferCreateTypeMap.end()) {
+    return PI_ERROR_UNKNOWN;
+  }
+
+  auto hMemObj = reinterpret_cast<ur_mem_handle_t *>(memObj);
+  auto hBufferCreateInfo =
+      reinterpret_cast<ur_buffer_region_t *>(buffer_create_info);
+
+  HANDLE_ERRORS(urMemBufferPartition(hParentBuffer, urFlags,
+                                     BufferCreateTypeIt->second,
+                                     hBufferCreateInfo, hMemObj));
+
+  return PI_SUCCESS;
+}
+
+// Memory
 ///////////////////////////////////////////////////////////////////////////////
 
 } // namespace pi2ur
