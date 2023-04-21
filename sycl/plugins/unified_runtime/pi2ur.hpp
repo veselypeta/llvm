@@ -2006,21 +2006,38 @@ inline pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags,
   ur_buffer_alloc_location_properties_t bufferLocationProperties {
      UR_STRUCTURE_TYPE_BUFFER_ALLOC_LOCATION_PROPERTIES,
      nullptr,
-     PI_MEM_PROPERTIES_ALLOC_BUFFER_LOCATION,
+     0,
   };
 
   ur_buffer_channel_properties_t bufferChannelProperties {
     UR_STRUCTURE_TYPE_BUFFER_CHANNEL_PROPERTIES,
     &bufferLocationProperties,
-    PI_MEM_PROPERTIES_CHANNEL,
+    0,
   };
-  
 
   ur_buffer_properties_t bufferProperties {
     UR_STRUCTURE_TYPE_BUFFER_PROPERTIES,
-    &bufferChannelProperties,
+    nullptr,
     host_ptr,
   };
+  
+  const pi_mem_properties *CurProperty = properties;
+  while (*CurProperty != 0) {
+    switch (*CurProperty) {
+    case PI_MEM_PROPERTIES_ALLOC_BUFFER_LOCATION: {
+      bufferLocationProperties.location = static_cast<uint32_t>(*(++CurProperty));
+    } break;
+
+    case PI_MEM_PROPERTIES_CHANNEL: {
+      bufferChannelProperties.channel = static_cast<uint32_t>(*(++CurProperty));
+      bufferProperties.pNext = &bufferChannelProperties;
+    } break;
+
+    default:
+      break;
+    }
+    CurProperty++;
+  }
 
   auto phRetMem = reinterpret_cast<ur_mem_handle_t *>(ret_mem);
   HANDLE_ERRORS(urMemBufferCreate(hContext, urFlags, size, &bufferProperties, phRetMem));

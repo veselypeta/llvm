@@ -21,7 +21,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferCreate(
     ur_context_handle_t hContext, ur_mem_flags_t flags, size_t size,
     const ur_buffer_properties_t *pProperties, ur_mem_handle_t *phBuffer) {
   // Need input memory object
-  assert(phBuffer != nullptr);
+  UR_ASSERT(phBuffer, UR_RESULT_ERROR_INVALID_NULL_POINTER);
   // Currently, USE_HOST_PTR is not implemented using host register
   // since this triggers a weird segfault after program ends.
   // Setting this constant to true enables testing that behavior.
@@ -91,7 +91,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferCreate(
 }
 
 UR_APIEXPORT ur_result_t UR_APICALL urMemRetain(ur_mem_handle_t hMem) {
-  assert(hMem != nullptr);
+  UR_ASSERT(hMem, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
   assert(hMem->get_reference_count() > 0);
   hMem->increment_reference_count();
   return UR_RESULT_SUCCESS;
@@ -102,7 +102,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemRetain(ur_mem_handle_t hMem) {
 /// \return UR_RESULT_SUCCESS unless deallocation error
 ///
 UR_APIEXPORT ur_result_t UR_APICALL urMemRelease(ur_mem_handle_t hMem) {
-  assert((hMem != nullptr) && "UR_RESULT_ERROR_INVALID_MEM_OBJECT");
+  UR_ASSERT(hMem, UR_RESULT_ERROR_INVALID_MEM_OBJECT);
 
   ur_result_t ret = UR_RESULT_SUCCESS;
 
@@ -197,7 +197,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemImageCreate(
     const ur_image_format_t *pImageFormat, const ur_image_desc_t *pImageDesc,
     void *pHost, ur_mem_handle_t *phMem) {
   // Need input memory object
-  assert(phMem != nullptr);
+  UR_ASSERT(phMem, UR_RESULT_ERROR_INVALID_NULL_POINTER);
   const bool performInitialCopy =
       (flags & UR_MEM_FLAG_ALLOC_COPY_HOST_POINTER) ||
       ((flags & UR_MEM_FLAG_USE_HOST_POINTER));
@@ -363,27 +363,27 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferPartition(
     ur_mem_handle_t hBuffer, ur_mem_flags_t flags,
     ur_buffer_create_type_t bufferCreateType, const ur_buffer_region_t *pRegion,
     ur_mem_handle_t *phMem) {
-  assert((hBuffer != nullptr) && "UR_RESULT_ERROR_INVALID_MEM_OBJECT");
-  assert(hBuffer->is_buffer() && "UR_RESULT_ERROR_INVALID_MEM_OBJECT");
-  assert(!hBuffer->is_sub_buffer() && "UR_RESULT_ERROR_INVALID_MEM_OBJECT");
+  UR_ASSERT(hBuffer, UR_RESULT_ERROR_INVALID_MEM_OBJECT);
+  UR_ASSERT(hBuffer->is_buffer(), UR_RESULT_ERROR_INVALID_MEM_OBJECT);
+  UR_ASSERT(!hBuffer->is_sub_buffer(), UR_RESULT_ERROR_INVALID_MEM_OBJECT);
 
   // Default value for flags means UR_MEM_FLAG_READ_WRITE.
   if (flags == 0) {
     flags = UR_MEM_FLAG_READ_WRITE;
   }
 
-  assert((flags == UR_MEM_FLAG_READ_WRITE) && "UR_RESULT_ERROR_INVALID_VALUE");
-  assert((bufferCreateType == UR_BUFFER_CREATE_TYPE_REGION) &&
-         "UR_RESULT_ERROR_INVALID_VALUE");
-  assert((pRegion != nullptr) && "UR_RESULT_ERROR_INVALID_VALUE");
-  assert(phMem != nullptr);
+  UR_ASSERT(flags == UR_MEM_FLAG_READ_WRITE, UR_RESULT_ERROR_INVALID_VALUE);
+  UR_ASSERT(bufferCreateType == UR_BUFFER_CREATE_TYPE_REGION,
+         UR_RESULT_ERROR_INVALID_VALUE);
+  UR_ASSERT(pRegion != nullptr, UR_RESULT_ERROR_INVALID_VALUE);
+  UR_ASSERT(phMem, UR_RESULT_ERROR_INVALID_NULL_POINTER);
 
-  assert((pRegion->size != 0u) && "UR_RESULT_ERROR_INVALID_BUFFER_SIZE");
+  UR_ASSERT(pRegion->size != 0u, UR_RESULT_ERROR_INVALID_BUFFER_SIZE);
 
   assert((pRegion->origin <= (pRegion->origin + pRegion->size)) && "Overflow");
-  assert(((pRegion->origin + pRegion->size) <=
-          hBuffer->mem_.buffer_mem_.get_size()) &&
-         "UR_RESULT_ERROR_INVALID_BUFFER_SIZE");
+  UR_ASSERT(((pRegion->origin + pRegion->size) <=
+          hBuffer->mem_.buffer_mem_.get_size()), 
+          UR_RESULT_ERROR_INVALID_BUFFER_SIZE);
   // Retained indirectly due to retaining parent buffer below.
   ur_context_handle_t context = hBuffer->context_;
 
