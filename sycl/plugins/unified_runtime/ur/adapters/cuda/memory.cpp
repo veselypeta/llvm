@@ -35,7 +35,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferCreate(
   try {
     ScopedContext active(hContext);
     CUdeviceptr ptr;
-    auto pHost = pProperties->pHost;
+    auto pHost = pProperties ? pProperties->pHost : nullptr;
 
     ur_mem_handle_t_::mem_::buffer_mem_::alloc_mode allocMode =
         ur_mem_handle_t_::mem_::buffer_mem_::alloc_mode::classic;

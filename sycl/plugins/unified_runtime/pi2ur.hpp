@@ -2022,7 +2022,7 @@ inline pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags,
   };
   
   const pi_mem_properties *CurProperty = properties;
-  while (*CurProperty != 0) {
+  while (CurProperty && *CurProperty != 0) {
     switch (*CurProperty) {
     case PI_MEM_PROPERTIES_ALLOC_BUFFER_LOCATION: {
       bufferLocationProperties.location = static_cast<uint32_t>(*(++CurProperty));
@@ -2233,27 +2233,23 @@ inline pi_result piMemBufferPartition(pi_mem parent_buffer, pi_mem_flags flags,
                                       void *buffer_create_info,
                                       pi_mem *memObj) {
   auto hParentBuffer = reinterpret_cast<ur_mem_handle_t>(parent_buffer);
+  auto hMemObj = reinterpret_cast<ur_mem_handle_t *>(memObj);
 
   ur_mem_flags_t urFlags{};
   pi2urMemFlags(flags, &urFlags);
 
-  static std::unordered_map<pi_buffer_create_type, ur_buffer_create_type_t>
-      BufferCreateTypeMap = {
-          {PI_BUFFER_CREATE_TYPE_REGION, UR_BUFFER_CREATE_TYPE_REGION},
-      };
-
-  auto BufferCreateTypeIt = BufferCreateTypeMap.find(buffer_create_type);
-  if (BufferCreateTypeIt == BufferCreateTypeMap.end()) {
-    return PI_ERROR_UNKNOWN;
-  }
-
-  auto hMemObj = reinterpret_cast<ur_mem_handle_t *>(memObj);
-  auto hBufferCreateInfo =
-      reinterpret_cast<ur_buffer_region_t *>(buffer_create_info);
+  auto piBuffer = static_cast<pi_buffer_region>(buffer_create_info);
+  
+  const ur_buffer_region_t bufferRegion {
+    UR_STRUCTURE_TYPE_BUFFER_REGION,
+    nullptr,
+    piBuffer->origin,
+    piBuffer->size
+  };
 
   HANDLE_ERRORS(urMemBufferPartition(hParentBuffer, urFlags,
-                                     BufferCreateTypeIt->second,
-                                     hBufferCreateInfo, hMemObj));
+                                     UR_BUFFER_CREATE_TYPE_REGION,
+                                     &bufferRegion, hMemObj));
 
   return PI_SUCCESS;
 }
