@@ -6,7 +6,6 @@
 //
 //===-----------------------------------------------------------------===//
 
-#include <cassert>
 #include <cuda.h>
 
 #include "common.hpp"
@@ -92,7 +91,8 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferCreate(
 
 UR_APIEXPORT ur_result_t UR_APICALL urMemRetain(ur_mem_handle_t hMem) {
   UR_ASSERT(hMem, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
-  assert(hMem->get_reference_count() > 0);
+  UR_ASSERT(hMem->get_reference_count() > 0,
+            UR_RESULT_ERROR_INVALID_MEM_OBJECT);
   hMem->increment_reference_count();
   return UR_RESULT_SUCCESS;
 }
@@ -179,7 +179,6 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemGetInfo(ur_mem_handle_t hMemory,
                                                  size_t propSize,
                                                  void *pMemInfo,
                                                  size_t *pPropSizeRet) {
-  sycl::detail::ur::die("urMemGetInfo not implemented");
   return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }
 
@@ -351,7 +350,6 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemImageCreate(
 UR_APIEXPORT ur_result_t UR_APICALL
 urMemImageGetInfo(ur_mem_handle_t hMemory, ur_image_info_t ImgInfoType,
                   size_t propSize, void *pImgInfo, size_t *pPropSizeRet) {
-  sycl::detail::ur::die("cuda_piMemImageGetInfo not implemented");
   return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }
 
@@ -374,7 +372,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferPartition(
 
   UR_ASSERT(flags == UR_MEM_FLAG_READ_WRITE, UR_RESULT_ERROR_INVALID_VALUE);
   UR_ASSERT(bufferCreateType == UR_BUFFER_CREATE_TYPE_REGION,
-         UR_RESULT_ERROR_INVALID_VALUE);
+            UR_RESULT_ERROR_INVALID_VALUE);
   UR_ASSERT(pRegion != nullptr, UR_RESULT_ERROR_INVALID_VALUE);
   UR_ASSERT(phMem, UR_RESULT_ERROR_INVALID_NULL_POINTER);
 
@@ -382,8 +380,8 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferPartition(
 
   assert((pRegion->origin <= (pRegion->origin + pRegion->size)) && "Overflow");
   UR_ASSERT(((pRegion->origin + pRegion->size) <=
-          hBuffer->mem_.buffer_mem_.get_size()), 
-          UR_RESULT_ERROR_INVALID_BUFFER_SIZE);
+             hBuffer->mem_.buffer_mem_.get_size()),
+            UR_RESULT_ERROR_INVALID_BUFFER_SIZE);
   // Retained indirectly due to retaining parent buffer below.
   ur_context_handle_t context = hBuffer->context_;
 
