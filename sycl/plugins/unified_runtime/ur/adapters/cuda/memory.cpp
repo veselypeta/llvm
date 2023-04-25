@@ -19,8 +19,23 @@
 UR_APIEXPORT ur_result_t UR_APICALL urMemBufferCreate(
     ur_context_handle_t hContext, ur_mem_flags_t flags, size_t size,
     const ur_buffer_properties_t *pProperties, ur_mem_handle_t *phBuffer) {
+  UR_ASSERT(hContext, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
+  // Validate flags
+  UR_ASSERT((flags & UR_MEM_FLAGS_MASK) == 0,
+            UR_RESULT_ERROR_INVALID_ENUMERATION);
+  if (flags & (UR_MEM_FLAG_USE_HOST_POINTER | UR_MEM_FLAG_ALLOC_HOST_POINTER |
+               UR_MEM_FLAG_ALLOC_COPY_HOST_POINTER)) {
+    UR_ASSERT(pProperties && pProperties->pHost,
+              UR_RESULT_ERROR_INVALID_HOST_PTR);
+  }
   // Need input memory object
   UR_ASSERT(phBuffer, UR_RESULT_ERROR_INVALID_NULL_POINTER);
+  UR_ASSERT(size != 0, UR_RESULT_ERROR_INVALID_BUFFER_SIZE);
+  uint64_t maxAlloc = 0;
+  urDeviceGetInfo(hContext->get_device(), UR_DEVICE_INFO_MAX_MEM_ALLOC_SIZE,
+                  sizeof(maxAlloc), &maxAlloc, nullptr);
+  UR_ASSERT(size <= maxAlloc, UR_RESULT_ERROR_INVALID_BUFFER_SIZE);
+
   // Currently, USE_HOST_PTR is not implemented using host register
   // since this triggers a weird segfault after program ends.
   // Setting this constant to true enables testing that behavior.
@@ -102,7 +117,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemRetain(ur_mem_handle_t hMem) {
 /// \return UR_RESULT_SUCCESS unless deallocation error
 ///
 UR_APIEXPORT ur_result_t UR_APICALL urMemRelease(ur_mem_handle_t hMem) {
-  UR_ASSERT(hMem, UR_RESULT_ERROR_INVALID_MEM_OBJECT);
+  UR_ASSERT(hMem, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
 
   ur_result_t ret = UR_RESULT_SUCCESS;
 
@@ -169,6 +184,8 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemRelease(ur_mem_handle_t hMem) {
 /// \return UR_RESULT_SUCCESS
 UR_APIEXPORT ur_result_t UR_APICALL
 urMemGetNativeHandle(ur_mem_handle_t hMem, ur_native_handle_t *phNativeMem) {
+  UR_ASSERT(hMem, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
+  UR_ASSERT(phNativeMem, UR_RESULT_ERROR_INVALID_NULL_POINTER);
   *phNativeMem =
       reinterpret_cast<ur_native_handle_t>(hMem->mem_.buffer_mem_.get());
   return UR_RESULT_SUCCESS;
@@ -179,14 +196,40 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemGetInfo(ur_mem_handle_t hMemory,
                                                  size_t propSize,
                                                  void *pMemInfo,
                                                  size_t *pPropSizeRet) {
-  return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
+  UR_ASSERT(hMemory, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
+  UR_ASSERT(MemInfoType <= UR_MEM_INFO_CONTEXT,
+            UR_RESULT_ERROR_INVALID_ENUMERATION);
+  UR_ASSERT(hMemory->is_buffer(), UR_RESULT_ERROR_INVALID_MEM_OBJECT);
+
+  UrReturnHelper ReturnValue(propSize, pMemInfo, pPropSizeRet);
+
+  ScopedContext active(hMemory->get_context());
+
+  switch (MemInfoType) {
+  case UR_MEM_INFO_SIZE: {
+    try {
+      size_t allocSize = 0;
+      UR_CHECK_ERROR(cuMemGetAddressRange(nullptr, &allocSize,
+                                          hMemory->mem_.buffer_mem_.ptr_));
+      return ReturnValue(allocSize);
+    } catch (ur_result_t err) {
+      return err;
+    } catch (...) {
+      return UR_RESULT_ERROR_UNKNOWN;
+    }
+  }
+  case UR_MEM_INFO_CONTEXT: {
+    return ReturnValue(hMemory->get_context());
+  }
+
+  default:
+    return UR_RESULT_ERROR_INVALID_ENUMERATION;
+  }
 }
 
 UR_APIEXPORT ur_result_t UR_APICALL urMemCreateWithNativeHandle(
     ur_native_handle_t hNativeMem, ur_context_handle_t hContext,
     ur_mem_handle_t *phMem) {
-  sycl::detail::ur::die(
-      "Creation of UR mem from native handle not implemented");
   return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }
 
@@ -196,18 +239,38 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemImageCreate(
     const ur_image_format_t *pImageFormat, const ur_image_desc_t *pImageDesc,
     void *pHost, ur_mem_handle_t *phMem) {
   // Need input memory object
+  UR_ASSERT(hContext, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
   UR_ASSERT(phMem, UR_RESULT_ERROR_INVALID_NULL_POINTER);
+  UR_ASSERT(pImageDesc, UR_RESULT_ERROR_INVALID_NULL_POINTER);
+  UR_ASSERT((flags & UR_MEM_FLAGS_MASK) == 0,
+            UR_RESULT_ERROR_INVALID_ENUMERATION);
+  if (flags & (UR_MEM_FLAG_ALLOC_COPY_HOST_POINTER |
+               UR_MEM_FLAG_ALLOC_HOST_POINTER | UR_MEM_FLAG_USE_HOST_POINTER)) {
+    UR_ASSERT(pHost, UR_RESULT_ERROR_INVALID_HOST_PTR);
+  }
   const bool performInitialCopy =
       (flags & UR_MEM_FLAG_ALLOC_COPY_HOST_POINTER) ||
       ((flags & UR_MEM_FLAG_USE_HOST_POINTER));
+
+  UR_ASSERT(pImageDesc->stype == UR_STRUCTURE_TYPE_IMAGE_DESC,
+            UR_RESULT_ERROR_INVALID_IMAGE_FORMAT_DESCRIPTOR);
+  UR_ASSERT(pImageDesc->type <= UR_MEM_TYPE_IMAGE1D_BUFFER,
+            UR_RESULT_ERROR_INVALID_IMAGE_FORMAT_DESCRIPTOR);
+  UR_ASSERT(pImageDesc->numMipLevel == 0,
+            UR_RESULT_ERROR_INVALID_IMAGE_FORMAT_DESCRIPTOR);
+  UR_ASSERT(pImageDesc->numSamples == 0,
+            UR_RESULT_ERROR_INVALID_IMAGE_FORMAT_DESCRIPTOR);
+  UR_ASSERT(pHost == nullptr && pImageDesc->rowPitch == 0,
+            UR_RESULT_ERROR_INVALID_IMAGE_FORMAT_DESCRIPTOR);
+  UR_ASSERT(pHost == nullptr && pImageDesc->slicePitch == 0,
+            UR_RESULT_ERROR_INVALID_IMAGE_FORMAT_DESCRIPTOR);
+
   ur_result_t retErr = UR_RESULT_SUCCESS;
 
   // We only support RBGA channel order
   // TODO: check SYCL CTS and spec. May also have to support BGRA
-  if (pImageFormat->channelOrder !=
-      ur_image_channel_order_t::UR_IMAGE_CHANNEL_ORDER_RGBA) {
-    sycl::detail::ur::die("urMemImageCreate only supports RGBA channel order");
-  }
+  UR_ASSERT(pImageFormat->channelOrder == UR_IMAGE_CHANNEL_ORDER_RGBA,
+            UR_RESULT_ERROR_UNSUPPORTED_ENUMERATION);
 
   // We have to use cuArray3DCreate, which has some caveats. The height and
   // depth parameters must be set to 0 produce 1D or 2D arrays. pImageDesc gives
@@ -277,8 +340,17 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemImageCreate(
                             pImageDesc->height * pImageDesc->depth;
 
   ScopedContext active(hContext);
-  CUarray image_array;
-  retErr = UR_CHECK_ERROR(cuArray3DCreate(&image_array, &array_desc));
+  CUarray image_array = nullptr;
+  try {
+    retErr = UR_CHECK_ERROR(cuArray3DCreate(&image_array, &array_desc));
+  } catch (ur_result_t err) {
+    if (err == UR_RESULT_ERROR_INVALID_VALUE) {
+      return UR_RESULT_ERROR_INVALID_IMAGE_SIZE;
+    }
+    return err;
+  } catch (...) {
+    return UR_RESULT_ERROR_UNKNOWN;
+  }
 
   try {
     if (performInitialCopy) {
@@ -336,10 +408,14 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemImageCreate(
 
     *phMem = urMemObj.release();
   } catch (ur_result_t err) {
-    cuArrayDestroy(image_array);
+    if (image_array) {
+      cuArrayDestroy(image_array);
+    }
     return err;
   } catch (...) {
-    cuArrayDestroy(image_array);
+    if (image_array) {
+      cuArrayDestroy(image_array);
+    }
     return UR_RESULT_ERROR_UNKNOWN;
   }
 
@@ -361,7 +437,9 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferPartition(
     ur_mem_handle_t hBuffer, ur_mem_flags_t flags,
     ur_buffer_create_type_t bufferCreateType, const ur_buffer_region_t *pRegion,
     ur_mem_handle_t *phMem) {
-  UR_ASSERT(hBuffer, UR_RESULT_ERROR_INVALID_MEM_OBJECT);
+  UR_ASSERT(hBuffer, UR_RESULT_ERROR_INVALID_NULL_HANDLE);
+  UR_ASSERT((flags & UR_MEM_FLAGS_MASK) == 0,
+            UR_RESULT_ERROR_INVALID_ENUMERATION);
   UR_ASSERT(hBuffer->is_buffer(), UR_RESULT_ERROR_INVALID_MEM_OBJECT);
   UR_ASSERT(!hBuffer->is_sub_buffer(), UR_RESULT_ERROR_INVALID_MEM_OBJECT);
 
@@ -372,8 +450,8 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferPartition(
 
   UR_ASSERT(flags == UR_MEM_FLAG_READ_WRITE, UR_RESULT_ERROR_INVALID_VALUE);
   UR_ASSERT(bufferCreateType == UR_BUFFER_CREATE_TYPE_REGION,
-            UR_RESULT_ERROR_INVALID_VALUE);
-  UR_ASSERT(pRegion != nullptr, UR_RESULT_ERROR_INVALID_VALUE);
+            UR_RESULT_ERROR_INVALID_ENUMERATION);
+  UR_ASSERT(pRegion != nullptr, UR_RESULT_ERROR_INVALID_NULL_POINTER);
   UR_ASSERT(phMem, UR_RESULT_ERROR_INVALID_NULL_POINTER);
 
   UR_ASSERT(pRegion->size != 0u, UR_RESULT_ERROR_INVALID_BUFFER_SIZE);
