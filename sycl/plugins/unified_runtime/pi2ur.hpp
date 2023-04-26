@@ -1495,6 +1495,20 @@ inline pi_result piKernelSetArgPointer(pi_kernel kernel, pi_uint32 arg_index,
   return PI_SUCCESS;
 }
 
+inline pi_result piextKernelSetArgMemObj(pi_kernel kernel, pi_uint32 arg_index,
+                                         const pi_mem *arg_value) {
+  if (!arg_value) {
+    return PI_ERROR_INVALID_VALUE;
+  }
+
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  auto hBuffer = reinterpret_cast<const ur_mem_handle_t *>(arg_value);
+
+  HANDLE_ERRORS(urKernelSetArgMemObj(hKernel, arg_index, *hBuffer));
+
+  return PI_SUCCESS;
+}
+
 inline pi_result piKernelGetNativeHandle(pi_kernel kernel,
                                          pi_native_handle *nativeHandle) {
   auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
@@ -1670,7 +1684,7 @@ inline pi_result piextQueueGetNativeHandle2(pi_queue queue,
                                             pi_native_handle *nativeHandle,
                                             int32_t *nativeHandleDesc) {
 
-  (void) nativeHandleDesc;
+  (void)nativeHandleDesc;
   return pi2ur::piextQueueGetNativeHandle(queue, nativeHandle);
 }
 
@@ -1885,6 +1899,47 @@ inline pi_result piEnqueueEventsWaitWithBarrier(
 
   return PI_SUCCESS;
 }
+
+inline pi_result piEnqueueMemBufferRead(pi_queue command_queue, pi_mem buffer,
+                                        pi_bool blocking_read, size_t offset,
+                                        size_t size, void *ptr,
+                                        pi_uint32 num_events_in_wait_list,
+                                        const pi_event *event_wait_list,
+                                        pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hBuffer = reinterpret_cast<ur_mem_handle_t>(buffer);
+  auto urBlockingRead = static_cast<bool>(blocking_read);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueMemBufferRead(hQueue, hBuffer, urBlockingRead, offset,
+                                       size, ptr, num_events_in_wait_list,
+                                       phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEnqueueMemBufferWrite(pi_queue command_queue, pi_mem buffer,
+                                         pi_bool blocking_write, size_t offset,
+                                         size_t size, const void *ptr,
+                                         pi_uint32 num_events_in_wait_list,
+                                         const pi_event *event_wait_list,
+                                         pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hBuffer = reinterpret_cast<ur_mem_handle_t>(buffer);
+  auto urBlockingWrite = static_cast<bool>(blocking_write);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueMemBufferWrite(
+      hQueue, hBuffer, urBlockingWrite, offset, size, ptr,
+      num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
 // Enqueue
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -2008,29 +2063,30 @@ inline pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags,
   ur_mem_flags_t urFlags{};
   pi2urMemFlags(flags, &urFlags);
 
-  ur_buffer_alloc_location_properties_t bufferLocationProperties {
-     UR_STRUCTURE_TYPE_BUFFER_ALLOC_LOCATION_PROPERTIES,
-     nullptr,
-     0,
+  ur_buffer_alloc_location_properties_t bufferLocationProperties{
+      UR_STRUCTURE_TYPE_BUFFER_ALLOC_LOCATION_PROPERTIES,
+      nullptr,
+      0,
   };
 
-  ur_buffer_channel_properties_t bufferChannelProperties {
-    UR_STRUCTURE_TYPE_BUFFER_CHANNEL_PROPERTIES,
-    &bufferLocationProperties,
-    0,
+  ur_buffer_channel_properties_t bufferChannelProperties{
+      UR_STRUCTURE_TYPE_BUFFER_CHANNEL_PROPERTIES,
+      &bufferLocationProperties,
+      0,
   };
 
-  ur_buffer_properties_t bufferProperties {
-    UR_STRUCTURE_TYPE_BUFFER_PROPERTIES,
-    nullptr,
-    host_ptr,
+  ur_buffer_properties_t bufferProperties{
+      UR_STRUCTURE_TYPE_BUFFER_PROPERTIES,
+      nullptr,
+      host_ptr,
   };
-  
+
   const pi_mem_properties *CurProperty = properties;
   while (CurProperty && *CurProperty != 0) {
     switch (*CurProperty) {
     case PI_MEM_PROPERTIES_ALLOC_BUFFER_LOCATION: {
-      bufferLocationProperties.location = static_cast<uint32_t>(*(++CurProperty));
+      bufferLocationProperties.location =
+          static_cast<uint32_t>(*(++CurProperty));
     } break;
 
     case PI_MEM_PROPERTIES_CHANNEL: {
@@ -2045,7 +2101,8 @@ inline pi_result piMemBufferCreate(pi_context context, pi_mem_flags flags,
   }
 
   auto phRetMem = reinterpret_cast<ur_mem_handle_t *>(ret_mem);
-  HANDLE_ERRORS(urMemBufferCreate(hContext, urFlags, size, &bufferProperties, phRetMem));
+  HANDLE_ERRORS(
+      urMemBufferCreate(hContext, urFlags, size, &bufferProperties, phRetMem));
   return PI_SUCCESS;
 }
 
@@ -2062,7 +2119,7 @@ inline pi_result piMemRelease(pi_mem memObj) {
 }
 
 inline pi_result piextMemGetNativeHandle(pi_mem mem,
-                                        pi_native_handle *nativeHandle) {
+                                         pi_native_handle *nativeHandle) {
   auto hMem = reinterpret_cast<ur_mem_handle_t>(mem);
   auto hNativeHandle = reinterpret_cast<ur_native_handle_t *>(nativeHandle);
   HANDLE_ERRORS(urMemGetNativeHandle(hMem, hNativeHandle));
@@ -2120,23 +2177,23 @@ inline pi_result piMemImageCreate(pi_context context, pi_mem_flags flags,
   pi2urMemFlags(flags, &urFlags);
 
   static std::unordered_map<pi_image_channel_order, ur_image_channel_order_t>
-    ImageChannelOrderMap = {
-        {PI_IMAGE_CHANNEL_ORDER_A, UR_IMAGE_CHANNEL_ORDER_A},
-        {PI_IMAGE_CHANNEL_ORDER_R, UR_IMAGE_CHANNEL_ORDER_R},
-        {PI_IMAGE_CHANNEL_ORDER_RG, UR_IMAGE_CHANNEL_ORDER_RG},
-        {PI_IMAGE_CHANNEL_ORDER_RA, UR_IMAGE_CHANNEL_ORDER_RA},
-        {PI_IMAGE_CHANNEL_ORDER_RGB, UR_IMAGE_CHANNEL_ORDER_RGB},
-        {PI_IMAGE_CHANNEL_ORDER_RGBA, UR_IMAGE_CHANNEL_ORDER_RGBA},
-        {PI_IMAGE_CHANNEL_ORDER_BGRA, UR_IMAGE_CHANNEL_ORDER_BGRA},
-        {PI_IMAGE_CHANNEL_ORDER_ARGB, UR_IMAGE_CHANNEL_ORDER_ARGB},
-        {PI_IMAGE_CHANNEL_ORDER_ABGR, UR_IMAGE_CHANNEL_ORDER_ABGR},
-        {PI_IMAGE_CHANNEL_ORDER_INTENSITY, UR_IMAGE_CHANNEL_ORDER_INTENSITY},
-        {PI_IMAGE_CHANNEL_ORDER_LUMINANCE, UR_IMAGE_CHANNEL_ORDER_LUMINANCE},
-        {PI_IMAGE_CHANNEL_ORDER_Rx, UR_IMAGE_CHANNEL_ORDER_RX},
-        {PI_IMAGE_CHANNEL_ORDER_RGx, UR_IMAGE_CHANNEL_ORDER_RGX},
-        {PI_IMAGE_CHANNEL_ORDER_RGBx, UR_IMAGE_CHANNEL_ORDER_RGBX},
-        {PI_IMAGE_CHANNEL_ORDER_sRGBA, UR_IMAGE_CHANNEL_ORDER_SRGBA},
-    };
+      ImageChannelOrderMap = {
+          {PI_IMAGE_CHANNEL_ORDER_A, UR_IMAGE_CHANNEL_ORDER_A},
+          {PI_IMAGE_CHANNEL_ORDER_R, UR_IMAGE_CHANNEL_ORDER_R},
+          {PI_IMAGE_CHANNEL_ORDER_RG, UR_IMAGE_CHANNEL_ORDER_RG},
+          {PI_IMAGE_CHANNEL_ORDER_RA, UR_IMAGE_CHANNEL_ORDER_RA},
+          {PI_IMAGE_CHANNEL_ORDER_RGB, UR_IMAGE_CHANNEL_ORDER_RGB},
+          {PI_IMAGE_CHANNEL_ORDER_RGBA, UR_IMAGE_CHANNEL_ORDER_RGBA},
+          {PI_IMAGE_CHANNEL_ORDER_BGRA, UR_IMAGE_CHANNEL_ORDER_BGRA},
+          {PI_IMAGE_CHANNEL_ORDER_ARGB, UR_IMAGE_CHANNEL_ORDER_ARGB},
+          {PI_IMAGE_CHANNEL_ORDER_ABGR, UR_IMAGE_CHANNEL_ORDER_ABGR},
+          {PI_IMAGE_CHANNEL_ORDER_INTENSITY, UR_IMAGE_CHANNEL_ORDER_INTENSITY},
+          {PI_IMAGE_CHANNEL_ORDER_LUMINANCE, UR_IMAGE_CHANNEL_ORDER_LUMINANCE},
+          {PI_IMAGE_CHANNEL_ORDER_Rx, UR_IMAGE_CHANNEL_ORDER_RX},
+          {PI_IMAGE_CHANNEL_ORDER_RGx, UR_IMAGE_CHANNEL_ORDER_RGX},
+          {PI_IMAGE_CHANNEL_ORDER_RGBx, UR_IMAGE_CHANNEL_ORDER_RGBX},
+          {PI_IMAGE_CHANNEL_ORDER_sRGBA, UR_IMAGE_CHANNEL_ORDER_SRGBA},
+      };
 
   const auto &ChannelOrderIt =
       ImageChannelOrderMap.find(image_format->image_channel_order);
@@ -2181,8 +2238,8 @@ inline pi_result piMemImageCreate(pi_context context, pi_mem_flags flags,
   }
   ur_image_channel_type_t urImageChannelType = ChannelTypeIt->second;
 
-  ur_image_format_t urImageFormat { urImageChannelOrder, urImageChannelType };
-  
+  ur_image_format_t urImageFormat{urImageChannelOrder, urImageChannelType};
+
   static std::unordered_map<pi_mem_type, ur_mem_type_t> ImageTypeMap = {
       {PI_MEM_TYPE_BUFFER, UR_MEM_TYPE_BUFFER},
       {PI_MEM_TYPE_IMAGE2D, UR_MEM_TYPE_IMAGE2D},
@@ -2192,15 +2249,14 @@ inline pi_result piMemImageCreate(pi_context context, pi_mem_flags flags,
       {PI_MEM_TYPE_IMAGE1D_ARRAY, UR_MEM_TYPE_IMAGE1D_ARRAY},
       {PI_MEM_TYPE_IMAGE1D_BUFFER, UR_MEM_TYPE_IMAGE1D_BUFFER},
   };
-  const auto &ImageTypeIt =
-      ImageTypeMap.find(image_desc->image_type);
+  const auto &ImageTypeIt = ImageTypeMap.find(image_desc->image_type);
   if (ImageTypeIt == ImageTypeMap.end()) {
     return PI_ERROR_UNKNOWN;
   }
 
   ur_image_desc_t urImageDesc{
       UR_STRUCTURE_TYPE_IMAGE_DESC,  nullptr,
-      ImageTypeIt->second,  image_desc->image_width,
+      ImageTypeIt->second,           image_desc->image_width,
       image_desc->image_height,      image_desc->image_depth,
       image_desc->image_array_size,  image_desc->image_row_pitch,
       image_desc->image_slice_pitch, image_desc->num_mip_levels,
@@ -2246,13 +2302,10 @@ inline pi_result piMemBufferPartition(pi_mem parent_buffer, pi_mem_flags flags,
   pi2urMemFlags(flags, &urFlags);
 
   auto piBuffer = static_cast<pi_buffer_region>(buffer_create_info);
-  
-  const ur_buffer_region_t bufferRegion {
-    UR_STRUCTURE_TYPE_BUFFER_REGION,
-    nullptr,
-    piBuffer->origin,
-    piBuffer->size
-  };
+
+  const ur_buffer_region_t bufferRegion{UR_STRUCTURE_TYPE_BUFFER_REGION,
+                                        nullptr, piBuffer->origin,
+                                        piBuffer->size};
 
   HANDLE_ERRORS(urMemBufferPartition(hParentBuffer, urFlags,
                                      UR_BUFFER_CREATE_TYPE_REGION,
