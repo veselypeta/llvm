@@ -9,6 +9,7 @@
 
 #include <cuda.h>
 #include <ur_api.h>
+#include <cassert>
 
 #include "common.hpp"
 
