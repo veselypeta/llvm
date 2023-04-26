@@ -7,7 +7,6 @@
 //===-----------------------------------------------------------------===//
 #pragma once
 
-#include <cassert>
 #include <cuda.h>
 #include <ur_api.h>
 
@@ -29,6 +28,9 @@ struct ur_mem_handle_t_ {
   /// Reference counting of the handler
   std::atomic_uint32_t refCount_;
   enum class mem_type { buffer, surface } mem_type_;
+
+  // Original mem flags passed
+  ur_mem_flags_t memFlags_;
 
   /// A UR Memory object represents either plain memory allocations ("Buffers"
   /// in OpenCL) or typed allocations ("Images" in OpenCL).
@@ -128,10 +130,11 @@ struct ur_mem_handle_t_ {
   } mem_;
 
   /// Constructs the UR mem handler for a non-typed allocation ("buffer")
-  ur_mem_handle_t_(ur_context ctxt, ur_mem parent,
+  ur_mem_handle_t_(ur_context ctxt, ur_mem parent, ur_mem_flags_t mem_flags,
                    mem_::buffer_mem_::alloc_mode mode, CUdeviceptr ptr,
                    void *host_ptr, size_t size)
-      : context_{ctxt}, refCount_{1}, mem_type_{mem_type::buffer} {
+      : context_{ctxt}, refCount_{1}, mem_type_{mem_type::buffer},
+        memFlags_{mem_flags} {
     mem_.buffer_mem_.ptr_ = ptr;
     mem_.buffer_mem_.parent_ = parent;
     mem_.buffer_mem_.hostPtr_ = host_ptr;
@@ -149,8 +152,10 @@ struct ur_mem_handle_t_ {
 
   /// Constructs the UR allocation for an Image object (surface in CUDA)
   ur_mem_handle_t_(ur_context ctxt, CUarray array, CUsurfObject surf,
-                   ur_mem_type_t image_type, void *host_ptr)
-      : context_{ctxt}, refCount_{1}, mem_type_{mem_type::surface} {
+                   ur_mem_flags_t mem_flags, ur_mem_type_t image_type,
+                   void *host_ptr)
+      : context_{ctxt}, refCount_{1}, mem_type_{mem_type::surface},
+        memFlags_{mem_flags} {
     // Ignore unused parameter
     (void)host_ptr;
 

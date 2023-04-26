@@ -75,7 +75,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferCreate(
       ur_mem_handle_t parentBuffer = nullptr;
 
       auto piMemObj = std::unique_ptr<ur_mem_handle_t_>(new ur_mem_handle_t_{
-          hContext, parentBuffer, allocMode, ptr, pHost, size});
+          hContext, parentBuffer, flags, allocMode, ptr, pHost, size});
       if (piMemObj != nullptr) {
         retMemObj = piMemObj.release();
         if (performInitialCopy) {
@@ -400,7 +400,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemImageCreate(
     retErr = UR_CHECK_ERROR(cuSurfObjectCreate(&surface, &image_res_desc));
 
     auto urMemObj = std::unique_ptr<ur_mem_handle_t_>(new ur_mem_handle_t_(
-        hContext, image_array, surface, pImageDesc->type, phMem));
+        hContext, image_array, surface, flags, pImageDesc->type, phMem));
 
     if (urMemObj == nullptr) {
       return UR_RESULT_ERROR_OUT_OF_HOST_MEMORY;
@@ -448,7 +448,19 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferPartition(
     flags = UR_MEM_FLAG_READ_WRITE;
   }
 
-  UR_ASSERT(flags == UR_MEM_FLAG_READ_WRITE, UR_RESULT_ERROR_INVALID_VALUE);
+  UR_ASSERT(!(flags &
+              (UR_MEM_FLAG_ALLOC_COPY_HOST_POINTER |
+               UR_MEM_FLAG_ALLOC_HOST_POINTER | UR_MEM_FLAG_USE_HOST_POINTER)),
+            UR_RESULT_ERROR_INVALID_VALUE);
+  if (hBuffer->memFlags_ & UR_MEM_FLAG_WRITE_ONLY) {
+    UR_ASSERT(!(flags & (UR_MEM_FLAG_READ_WRITE | UR_MEM_FLAG_READ_ONLY)),
+              UR_RESULT_ERROR_INVALID_VALUE);
+  }
+  if (hBuffer->memFlags_ & UR_MEM_FLAG_READ_ONLY) {
+    UR_ASSERT(!(flags & (UR_MEM_FLAG_READ_WRITE | UR_MEM_FLAG_WRITE_ONLY)),
+              UR_RESULT_ERROR_INVALID_VALUE);
+  }
+
   UR_ASSERT(bufferCreateType == UR_BUFFER_CREATE_TYPE_REGION,
             UR_RESULT_ERROR_INVALID_ENUMERATION);
   UR_ASSERT(pRegion != nullptr, UR_RESULT_ERROR_INVALID_NULL_POINTER);
@@ -480,7 +492,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemBufferPartition(
   std::unique_ptr<ur_mem_handle_t_> retMemObj{nullptr};
   try {
     retMemObj = std::unique_ptr<ur_mem_handle_t_>{new ur_mem_handle_t_{
-        context, hBuffer, allocMode, ptr, hostPtr, pRegion->size}};
+        context, hBuffer, flags, allocMode, ptr, hostPtr, pRegion->size}};
   } catch (ur_result_t err) {
     *phMem = nullptr;
     return err;
