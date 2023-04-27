@@ -1928,6 +1928,48 @@ inline pi_result piEnqueueMemBufferRead(pi_queue command_queue, pi_mem buffer,
   return PI_SUCCESS;
 }
 
+/// \TODO Not implemented
+inline pi_result piEnqueueNativeKernel(pi_queue, void (*)(void *), void *,
+                                       size_t, pi_uint32, const pi_mem *,
+                                       const void **, pi_uint32,
+                                       const pi_event *, pi_event *) {
+  die("Doesn't map to an entry-point in UR");
+  return {};
+}
+
+/// \TODO Not implemented in CUDA.
+inline pi_result piEnqueueMemImageFill(pi_queue, pi_mem, const void *,
+                                       const size_t *, const size_t *,
+                                       pi_uint32, const pi_event *,
+                                       pi_event *) {
+  die("Doesn't map to an entry-point in UR");
+  return {};
+}
+
+inline pi_result piEnqueueMemBufferReadRect(
+    pi_queue command_queue, pi_mem buffer, pi_bool blocking_read,
+    pi_buff_rect_offset buffer_offset, pi_buff_rect_offset host_offset,
+    pi_buff_rect_region region, size_t buffer_row_pitch,
+    size_t buffer_slice_pitch, size_t host_row_pitch, size_t host_slice_pitch,
+    void *ptr, pi_uint32 num_events_in_wait_list,
+    const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hBuffer = reinterpret_cast<ur_mem_handle_t>(buffer);
+  auto bufferOrigin = reinterpret_cast<ur_rect_offset_t *>(buffer_offset);
+  auto hostOrigin = reinterpret_cast<ur_rect_offset_t *>(host_offset);
+  auto ur_region = reinterpret_cast<ur_rect_region_t *>(region);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueMemBufferReadRect(
+      hQueue, hBuffer, blocking_read, *bufferOrigin, *hostOrigin, *ur_region,
+      buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch,
+      ptr, num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
 inline pi_result piEnqueueMemBufferWrite(pi_queue command_queue, pi_mem buffer,
                                          pi_bool blocking_write, size_t offset,
                                          size_t size, const void *ptr,
@@ -1948,6 +1990,205 @@ inline pi_result piEnqueueMemBufferWrite(pi_queue command_queue, pi_mem buffer,
   return PI_SUCCESS;
 }
 
+inline pi_result piEnqueueMemBufferWriteRect(
+    pi_queue command_queue, pi_mem buffer, pi_bool blocking_write,
+    pi_buff_rect_offset buffer_offset, pi_buff_rect_offset host_offset,
+    pi_buff_rect_region region, size_t buffer_row_pitch,
+    size_t buffer_slice_pitch, size_t host_row_pitch, size_t host_slice_pitch,
+    const void *ptr, pi_uint32 num_events_in_wait_list,
+    const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hBuffer = reinterpret_cast<ur_mem_handle_t>(buffer);
+  auto bufferOrigin = reinterpret_cast<ur_rect_offset_t *>(buffer_offset);
+  auto hostOrigin = reinterpret_cast<ur_rect_offset_t *>(host_offset);
+  auto ur_region = reinterpret_cast<ur_rect_region_t *>(region);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+  auto pSrc = const_cast<void *>(ptr);
+
+  HANDLE_ERRORS(urEnqueueMemBufferWriteRect(
+      hQueue, hBuffer, blocking_write, *bufferOrigin, *hostOrigin, *ur_region,
+      buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch,
+      pSrc, num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piEnqueueMemBufferCopy(pi_queue command_queue, pi_mem src_buffer,
+                       pi_mem dst_buffer, size_t src_offset, size_t dst_offset,
+                       size_t size, pi_uint32 num_events_in_wait_list,
+                       const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+  auto hBufferSrc = reinterpret_cast<ur_mem_handle_t>(src_buffer);
+  auto hBufferDst = reinterpret_cast<ur_mem_handle_t>(dst_buffer);
+
+  HANDLE_ERRORS(urEnqueueMemBufferCopy(
+      hQueue, hBufferSrc, hBufferDst, src_offset, dst_offset, size,
+      num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEnqueueMemBufferCopyRect(
+    pi_queue command_queue, pi_mem src_buffer, pi_mem dst_buffer,
+    pi_buff_rect_offset src_origin, pi_buff_rect_offset dst_origin,
+    pi_buff_rect_region region, size_t src_row_pitch, size_t src_slice_pitch,
+    size_t dst_row_pitch, size_t dst_slice_pitch,
+    pi_uint32 num_events_in_wait_list, const pi_event *event_wait_list,
+    pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+  auto hBufferSrc = reinterpret_cast<ur_mem_handle_t>(src_buffer);
+  auto hBufferDst = reinterpret_cast<ur_mem_handle_t>(dst_buffer);
+  auto srcOrigin = reinterpret_cast<ur_rect_offset_t *>(src_origin);
+  auto dstOrigin = reinterpret_cast<ur_rect_offset_t *>(dst_origin);
+  auto ur_region = reinterpret_cast<ur_rect_region_t *>(region);
+
+  HANDLE_ERRORS(urEnqueueMemBufferCopyRect(
+      hQueue, hBufferSrc, hBufferDst, *srcOrigin, *dstOrigin, *ur_region,
+      src_row_pitch, src_slice_pitch, dst_row_pitch, dst_slice_pitch,
+      num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piEnqueueMemBufferFill(pi_queue command_queue, pi_mem buffer,
+                       const void *pattern, size_t pattern_size, size_t offset,
+                       size_t size, pi_uint32 num_events_in_wait_list,
+                       const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hBuffer = reinterpret_cast<ur_mem_handle_t>(buffer);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueMemBufferFill(hQueue, hBuffer, pattern, pattern_size,
+                                       offset, size, num_events_in_wait_list,
+                                       phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEnqueueMemImageRead(
+    pi_queue command_queue, pi_mem image, pi_bool blocking_read,
+    const size_t *origin, const size_t *region, size_t row_pitch,
+    size_t slice_pitch, void *ptr, pi_uint32 num_events_in_wait_list,
+    const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hImage = reinterpret_cast<ur_mem_handle_t>(image);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  ur_rect_offset_t ur_origin{origin[0], origin[1], origin[2]};
+  ur_rect_region_t ur_region{region[0], region[1], region[2]};
+
+  HANDLE_ERRORS(urEnqueueMemImageRead(
+      hQueue, hImage, blocking_read, ur_origin, ur_region, row_pitch,
+      slice_pitch, ptr, num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piEnqueueMemImageWrite(pi_queue command_queue, pi_mem image,
+                       pi_bool blocking_write, const size_t *origin,
+                       const size_t *region, size_t input_row_pitch,
+                       size_t input_slice_pitch, const void *ptr,
+                       pi_uint32 num_events_in_wait_list,
+                       const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hImage = reinterpret_cast<ur_mem_handle_t>(image);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  ur_rect_offset_t ur_origin{origin[0], origin[1], origin[2]};
+  ur_rect_region_t ur_region{region[0], region[1], region[2]};
+
+  auto pSrc = const_cast<void *>(ptr);
+
+  HANDLE_ERRORS(urEnqueueMemImageWrite(
+      hQueue, hImage, blocking_write, ur_origin, ur_region, input_row_pitch,
+      input_slice_pitch, pSrc, num_events_in_wait_list, phEventWaitList,
+      phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piEnqueueMemImageCopy(pi_queue command_queue, pi_mem src_image,
+                      pi_mem dst_image, const size_t *src_origin,
+                      const size_t *dst_origin, const size_t *region,
+                      pi_uint32 num_events_in_wait_list,
+                      const pi_event *event_wait_list, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hSrcImage = reinterpret_cast<ur_mem_handle_t>(src_image);
+  auto hDstImage = reinterpret_cast<ur_mem_handle_t>(dst_image);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  ur_rect_offset_t ur_src_origin{src_origin[0], src_origin[1], src_origin[2]};
+  ur_rect_offset_t ur_dst_origin{dst_origin[0], dst_origin[1], dst_origin[2]};
+  ur_rect_region_t ur_region{region[0], region[1], region[2]};
+
+  HANDLE_ERRORS(urEnqueueMemImageCopy(
+      hQueue, hSrcImage, hDstImage, ur_src_origin, ur_dst_origin, ur_region,
+      num_events_in_wait_list, phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEnqueueMemBufferMap(pi_queue command_queue, pi_mem buffer,
+                                       pi_bool blocking_map,
+                                       pi_map_flags map_flags, size_t offset,
+                                       size_t size,
+                                       pi_uint32 num_events_in_wait_list,
+                                       const pi_event *event_wait_list,
+                                       pi_event *event, void **ret_map) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+  auto hBuffer = reinterpret_cast<ur_mem_handle_t>(buffer);
+
+  ur_map_flags_t urFlags{};
+
+  pi2urMapFlags(map_flags, &urFlags);
+
+  HANDLE_ERRORS(urEnqueueMemBufferMap(hQueue, hBuffer, blocking_map, urFlags,
+                                      offset, size, num_events_in_wait_list,
+                                      phEventWaitList, phEvent, ret_map));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result piEnqueueMemUnmap(pi_queue command_queue, pi_mem memobj,
+                                   void *mapped_ptr,
+                                   pi_uint32 num_events_in_wait_list,
+                                   const pi_event *event_wait_list,
+                                   pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(command_queue);
+  auto hMem = reinterpret_cast<ur_mem_handle_t>(memobj);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(event_wait_list);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueMemUnmap(hQueue, hMem, mapped_ptr,
+                                  num_events_in_wait_list, phEventWaitList,
+                                  phEvent));
+
+  return PI_SUCCESS;
+}
 // Enqueue
 ///////////////////////////////////////////////////////////////////////////////
 
