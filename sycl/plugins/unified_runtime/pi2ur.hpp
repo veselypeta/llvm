@@ -1497,9 +1497,7 @@ inline pi_result piKernelSetArgPointer(pi_kernel kernel, pi_uint32 arg_index,
 
 inline pi_result piextKernelSetArgMemObj(pi_kernel kernel, pi_uint32 arg_index,
                                          const pi_mem *arg_value) {
-  if (!arg_value) {
-    return PI_ERROR_INVALID_VALUE;
-  }
+  UR_ASSERT(arg_value, PI_ERROR_INVALID_VALUE);
 
   auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
   auto hBuffer = reinterpret_cast<const ur_mem_handle_t *>(arg_value);
