@@ -1536,6 +1536,16 @@ piextKernelCreateWithNativeHandle(pi_native_handle native_handle,
 
   return PI_SUCCESS;
 }
+
+inline pi_result piextKernelSetArgSampler(pi_kernel kernel, pi_uint32 arg_index,
+                                          const pi_sampler *arg_value) {
+  auto hKernel = reinterpret_cast<ur_kernel_handle_t>(kernel);
+  auto phArgValue = reinterpret_cast<const ur_sampler_handle_t *>(arg_value);
+
+  HANDLE_ERRORS(urKernelSetArgSampler(hKernel, arg_index, *phArgValue));
+
+  return PI_SUCCESS;
+}
 // Kernel
 ///////////////////////////////////////////////////////////////////////////////
 
