@@ -1004,6 +1004,73 @@ inline pi_result piextEnqueueDeviceGlobalVariableRead(
   return PI_SUCCESS;
 }
 
+inline pi_result piextDeviceSelectBinary(pi_device Device,
+                                         pi_device_binary *Binaries,
+                                         pi_uint32 NumBinaries,
+                                         pi_uint32 *SelectedBinaryInd) {
+
+  auto UrDevice = reinterpret_cast<ur_device_handle_t>(Device);
+  std::vector<ur_device_binary_t> UrBinaries(NumBinaries);
+
+  for (uint32_t BinaryCount = 0; BinaryCount < NumBinaries; BinaryCount++) {
+    if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+               __SYCL_PI_DEVICE_BINARY_TARGET_UNKNOWN) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_UNKNOWN;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_SPIRV32) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_SPIRV32;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_SPIRV64) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_SPIRV64;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_SPIRV64_X86_64) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_SPIRV64_X86_64;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_SPIRV64_GEN) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_SPIRV64_GEN;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_SPIRV64_FPGA) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_SPIRV64_FPGA;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_NVPTX64) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_NVPTX64;
+    else if (strcmp(Binaries[BinaryCount]->DeviceTargetSpec,
+                    __SYCL_PI_DEVICE_BINARY_TARGET_AMDGCN) == 0)
+      UrBinaries[BinaryCount].pDeviceTargetSpec =
+          UR_DEVICE_BINARY_TARGET_AMDGCN;
+  }
+
+  HANDLE_ERRORS(urDeviceSelectBinary(UrDevice, UrBinaries.data(), NumBinaries,
+                                     SelectedBinaryInd));
+  return PI_SUCCESS;
+}
+
+inline pi_result piextGetDeviceFunctionPointer(pi_device Device,
+                                               pi_program Program,
+                                               const char *FunctionName,
+                                               pi_uint64 *FunctionPointerRet) {
+
+  PI_ASSERT(Program, PI_ERROR_INVALID_PROGRAM);
+
+  auto UrDevice = reinterpret_cast<ur_device_handle_t>(Device);
+
+  ur_program_handle_t UrProgram =
+      reinterpret_cast<ur_program_handle_t>(Program);
+
+  void **FunctionPointer = reinterpret_cast<void **>(FunctionPointerRet);
+
+  HANDLE_ERRORS(urProgramGetFunctionPointer(UrDevice, UrProgram, FunctionName,
+                                            FunctionPointer));
+  return PI_SUCCESS;
+}
+
 // Device
 ///////////////////////////////////////////////////////////////////////////////
 
