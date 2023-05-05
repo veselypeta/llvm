@@ -1806,13 +1806,15 @@ inline pi_result piextQueueCreateWithNativeHandle(pi_native_handle nativeHandle,
                                                   pi_queue *queue) {
   auto hNativeHandle = reinterpret_cast<ur_native_handle_t>(nativeHandle);
   auto hContext = reinterpret_cast<ur_context_handle_t>(context);
+  auto hDevice = reinterpret_cast<ur_device_handle_t>(device);
   auto phQueue = reinterpret_cast<ur_queue_handle_t *>(queue);
 
-  (void)device;
-  (void)pluginOwnsNativeHandle;
+  ur_queue_native_properties_t Props = {
+      UR_STRUCTURE_TYPE_QUEUE_NATIVE_PROPERTIES, nullptr,
+      pluginOwnsNativeHandle};
 
-  HANDLE_ERRORS(
-      urQueueCreateWithNativeHandle(hNativeHandle, hContext, phQueue));
+  HANDLE_ERRORS(urQueueCreateWithNativeHandle(hNativeHandle, hContext, hDevice,
+                                              &Props, phQueue));
 
   return PI_SUCCESS;
 }
@@ -1952,8 +1954,11 @@ inline pi_result piextEventCreateWithNativeHandle(pi_native_handle nativeHandle,
   auto hNativeEvent = reinterpret_cast<ur_native_handle_t>(nativeHandle);
   auto hContext = reinterpret_cast<ur_context_handle_t>(context);
   auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+  ur_event_native_properties_t Props = {
+      UR_STRUCTURE_TYPE_EVENT_NATIVE_PROPERTIES, nullptr, ownNativeHandle};
 
-  HANDLE_ERRORS(urEventCreateWithNativeHandle(hNativeEvent, hContext, phEvent));
+  HANDLE_ERRORS(
+      urEventCreateWithNativeHandle(hNativeEvent, hContext, &Props, phEvent));
 
   return PI_SUCCESS;
 }
@@ -2512,8 +2517,11 @@ inline pi_result piextMemCreateWithNativeHandle(pi_native_handle nativeHandle,
   auto hNativeHandle = reinterpret_cast<ur_native_handle_t>(nativeHandle);
   auto hContext = reinterpret_cast<ur_context_handle_t>(context);
   auto hMem = reinterpret_cast<ur_mem_handle_t *>(mem);
-  (void)ownNativeHandle;
-  HANDLE_ERRORS(urMemCreateWithNativeHandle(hNativeHandle, hContext, hMem));
+  ur_mem_native_properties_t Props = {UR_STRUCTURE_TYPE_MEM_NATIVE_PROPERTIES,
+                                      nullptr, ownNativeHandle};
+
+  HANDLE_ERRORS(
+      urMemBufferCreateWithNativeHandle(hNativeHandle, hContext, &Props, hMem));
 
   return PI_SUCCESS;
 }

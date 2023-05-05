@@ -223,9 +223,16 @@ UR_APIEXPORT ur_result_t UR_APICALL urMemGetInfo(ur_mem_handle_t hMemory,
   }
 }
 
-UR_APIEXPORT ur_result_t UR_APICALL urMemCreateWithNativeHandle(
+UR_APIEXPORT ur_result_t UR_APICALL urMemBufferCreateWithNativeHandle(
     ur_native_handle_t hNativeMem, ur_context_handle_t hContext,
-    ur_mem_handle_t *phMem) {
+    const ur_mem_native_properties_t *pProperties, ur_mem_handle_t *phMem) {
+  return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
+}
+
+UR_APIEXPORT ur_result_t UR_APICALL urMemImageCreateWithNativeHandle(
+    ur_native_handle_t hNativeMem, ur_context_handle_t hContext,
+    const ur_image_format_t *pImageFormat, const ur_image_desc_t *pImageDesc,
+    const ur_mem_native_properties_t *pProperties, ur_mem_handle_t *phMem) {
   return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }
 
