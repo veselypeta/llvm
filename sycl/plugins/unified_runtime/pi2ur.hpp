@@ -508,6 +508,17 @@ inline pi_result piPluginGetLastError(char **ppMesage) {
   return PI_SUCCESS;
 }
 
+inline pi_result piPluginGetBackendOption(pi_platform Platform,
+                                          const char *FrontendOption,
+                                          const char **PlatformOption) {
+
+  auto UrPlatform = reinterpret_cast<ur_platform_handle_t>(Platform);
+  HANDLE_ERRORS(
+      urPlatformGetBackendOption(UrPlatform, FrontendOption, PlatformOption));
+
+  return PI_SUCCESS;
+}
+
 // Platform
 ///////////////////////////////////////////////////////////////////////////////
 
