@@ -2297,6 +2297,43 @@ inline pi_result piEnqueueMemUnmap(pi_queue command_queue, pi_mem memobj,
 
   return PI_SUCCESS;
 }
+
+inline pi_result
+piextEnqueueReadHostPipe(pi_queue queue, pi_program program,
+                         const char *pipe_symbol, pi_bool blocking, void *ptr,
+                         size_t size, pi_uint32 num_events_in_waitlist,
+                         const pi_event *events_waitlist, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueReadHostPipe(hQueue, hProgram, pipe_symbol, blocking,
+                                      ptr, size, num_events_in_waitlist,
+                                      phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
+inline pi_result
+piextEnqueueWriteHostPipe(pi_queue queue, pi_program program,
+                          const char *pipe_symbol, pi_bool blocking, void *ptr,
+                          size_t size, pi_uint32 num_events_in_waitlist,
+                          const pi_event *events_waitlist, pi_event *event) {
+  auto hQueue = reinterpret_cast<ur_queue_handle_t>(queue);
+  auto hProgram = reinterpret_cast<ur_program_handle_t>(program);
+  auto phEventWaitList =
+      reinterpret_cast<const ur_event_handle_t *>(events_waitlist);
+  auto phEvent = reinterpret_cast<ur_event_handle_t *>(event);
+
+  HANDLE_ERRORS(urEnqueueWriteHostPipe(hQueue, hProgram, pipe_symbol, blocking,
+                                       ptr, size, num_events_in_waitlist,
+                                       phEventWaitList, phEvent));
+
+  return PI_SUCCESS;
+}
+
 // Enqueue
 ///////////////////////////////////////////////////////////////////////////////
 
