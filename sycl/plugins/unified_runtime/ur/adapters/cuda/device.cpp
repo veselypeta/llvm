@@ -85,7 +85,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
     return ReturnValue(return_sizes);
   }
 
-  case UR_EXT_DEVICE_INFO_MAX_WORK_GROUPS_3D: {
+  case UR_DEVICE_INFO_MAX_WORK_GROUPS_3D: {
     struct {
       size_t sizes[max_work_item_dimensions];
     } return_sizes;
@@ -575,7 +575,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
   case UR_DEVICE_INFO_AVAILABLE: {
     return ReturnValue(true);
   }
-  case UR_EXT_DEVICE_INFO_BUILD_ON_SUBDEVICE: {
+  case UR_DEVICE_INFO_BUILD_ON_SUBDEVICE: {
     return ReturnValue(true);
   }
   case UR_DEVICE_INFO_COMPILER_AVAILABLE: {
@@ -700,14 +700,16 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
           6) {
         // compute capability 6.x introduces operations that are atomic with
         // respect to other CPUs and GPUs in the system
-        value = UR_EXT_USM_CAPS_ACCESS | UR_EXT_USM_CAPS_ATOMIC_ACCESS |
-                UR_EXT_USM_CAPS_CONCURRENT_ACCESS |
-                UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS;
+        value = UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_CONCURRENT_ACCESS;
       } else {
         // on GPU architectures with compute capability lower than 6.x, atomic
         // operations from the GPU to CPU memory will not be atomic with respect
         // to CPU initiated atomic operations
-        value = UR_EXT_USM_CAPS_ACCESS | UR_EXT_USM_CAPS_CONCURRENT_ACCESS;
+        value = UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS;
       }
     }
     return ReturnValue(value);
@@ -718,9 +720,11 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
     // associated with this device."
     //
     // query how the device can access memory allocated on the device itself (?)
-    uint64_t value = UR_EXT_USM_CAPS_ACCESS | UR_EXT_USM_CAPS_ATOMIC_ACCESS |
-                     UR_EXT_USM_CAPS_CONCURRENT_ACCESS |
-                     UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS;
+    uint64_t value =
+        UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS |
+        UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_ACCESS |
+        UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS |
+        UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_CONCURRENT_ACCESS;
     return ReturnValue(value);
   }
   case UR_DEVICE_INFO_USM_SINGLE_SHARED_SUPPORT: {
@@ -732,17 +736,18 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
     uint64_t value = {};
     if (getAttribute(device, CU_DEVICE_ATTRIBUTE_MANAGED_MEMORY)) {
       // the device can allocate managed memory on this system
-      value = UR_EXT_USM_CAPS_ACCESS | UR_EXT_USM_CAPS_ATOMIC_ACCESS;
+      value = UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS |
+              UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_ACCESS;
     }
     if (getAttribute(device, CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS)) {
       // the device can coherently access managed memory concurrently with the
       // CPU
-      value |= UR_EXT_USM_CAPS_CONCURRENT_ACCESS;
+      value |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS;
       if (getAttribute(device, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR) >=
           6) {
         // compute capability 6.x introduces operations that are atomic with
         // respect to other CPUs and GPUs in the system
-        value |= UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS;
+        value |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_CONCURRENT_ACCESS;
       }
     }
     return ReturnValue(value);
@@ -759,22 +764,22 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
     uint64_t value = {};
     if (getAttribute(device, CU_DEVICE_ATTRIBUTE_MANAGED_MEMORY)) {
       // the device can allocate managed memory on this system
-      value |= UR_EXT_USM_CAPS_ACCESS;
+      value |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS;
     }
     if (getAttribute(device, CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS)) {
       // all devices with the CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS
       // attribute can coherently access managed memory concurrently with the
       // CPU
-      value |= UR_EXT_USM_CAPS_CONCURRENT_ACCESS;
+      value |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS;
     }
     if (getAttribute(device, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR) >=
         6) {
       // compute capability 6.x introduces operations that are atomic with
       // respect to other CPUs and GPUs in the system
-      if (value & UR_EXT_USM_CAPS_ACCESS)
-        value |= UR_EXT_USM_CAPS_ATOMIC_ACCESS;
-      if (value & UR_EXT_USM_CAPS_CONCURRENT_ACCESS)
-        value |= UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS;
+      if (value & UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS)
+        value |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_ACCESS;
+      if (value & UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS)
+        value |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_CONCURRENT_ACCESS;
     }
     return ReturnValue(value);
   }
@@ -793,23 +798,25 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
                        CU_DEVICE_ATTRIBUTE_HOST_NATIVE_ATOMIC_SUPPORTED)) {
         // the link between the device and the host supports native atomic
         // operations
-        value = UR_EXT_USM_CAPS_ACCESS | UR_EXT_USM_CAPS_ATOMIC_ACCESS |
-                UR_EXT_USM_CAPS_CONCURRENT_ACCESS |
-                UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS;
+        value = UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_CONCURRENT_ACCESS;
       } else {
         // the link between the device and the host does not support native
         // atomic operations
-        value = UR_EXT_USM_CAPS_ACCESS | UR_EXT_USM_CAPS_CONCURRENT_ACCESS;
+        value = UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS |
+                UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS;
       }
     }
     return ReturnValue(value);
   }
-  case UR_EXT_DEVICE_INFO_CUDA_ASYNC_BARRIER: {
+  case UR_DEVICE_INFO_ASYNC_BARRIER: {
     int value =
         getAttribute(device, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR) >= 8;
     return ReturnValue(static_cast<bool>(value));
   }
-  case UR_EXT_DEVICE_INFO_BACKEND_VERSION: {
+  case UR_DEVICE_INFO_BACKEND_RUNTIME_VERSION: {
     int major =
         getAttribute(device, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR);
     int minor =
@@ -818,7 +825,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
     return ReturnValue(result.c_str());
   }
 
-  case UR_EXT_DEVICE_INFO_FREE_MEMORY: {
+  case UR_DEVICE_INFO_GLOBAL_MEM_FREE: {
     size_t FreeMemory = 0;
     size_t TotalMemory = 0;
     sycl::detail::ur::assertion(cuMemGetInfo(&FreeMemory, &TotalMemory) ==
@@ -835,7 +842,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
     // Convert kilohertz to megahertz when returning.
     return ReturnValue(value / 1000);
   }
-  case UR_EXT_DEVICE_INFO_MEMORY_BUS_WIDTH: {
+  case UR_DEVICE_INFO_MEMORY_BUS_WIDTH: {
     int value = 0;
     sycl::detail::ur::assertion(
         cuDeviceGetAttribute(&value,
@@ -872,7 +879,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
     std::copy(uuid.bytes, uuid.bytes + 16, name.begin());
     return ReturnValue(name.data(), 16);
   }
-  case UR_EXT_DEVICE_INFO_MAX_MEM_BANDWIDTH: {
+  case UR_DEVICE_INFO_MAX_MEMORY_BANDWIDTH: {
     int major = 0;
     sycl::detail::ur::assertion(
         cuDeviceGetAttribute(&major,
@@ -917,7 +924,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
 
     return ReturnValue(memory_bandwidth);
   }
-  case UR_EXT_DEVICE_INFO_MEM_CHANNEL_SUPPORT:
+  case UR_DEVICE_INFO_MEM_CHANNEL_SUPPORT:
     return ReturnValue(false);
   case UR_DEVICE_INFO_IMAGE_SRGB:
     return ReturnValue(false);
@@ -925,10 +932,10 @@ UR_APIEXPORT ur_result_t UR_APICALL urDeviceGetInfo(ur_device_handle_t device,
   case UR_DEVICE_INFO_PCI_ADDRESS:
   case UR_DEVICE_INFO_GPU_EU_COUNT:
   case UR_DEVICE_INFO_GPU_EU_SIMD_WIDTH:
-  case UR_EXT_DEVICE_INFO_GPU_SLICES:
+  case UR_DEVICE_INFO_GPU_EU_SLICES:
   case UR_DEVICE_INFO_GPU_SUBSLICES_PER_SLICE:
-  case UR_EXT_DEVICE_INFO_GPU_EU_COUNT_PER_SUBSLICE:
-  case UR_EXT_DEVICE_INFO_GPU_HW_THREADS_PER_EU:
+  case UR_DEVICE_INFO_GPU_EU_COUNT_PER_SUBSLICE:
+  case UR_DEVICE_INFO_GPU_HW_THREADS_PER_EU:
     return UR_RESULT_ERROR_INVALID_ENUMERATION;
 
   default:
