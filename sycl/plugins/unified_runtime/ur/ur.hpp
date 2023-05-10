@@ -22,9 +22,6 @@
 
 // TODO: promote all of the below extensions to the Unified Runtime
 //       and get rid of these ZER_EXT constants.
-const int UR_EXT_QUEUE_INFO_END = UR_QUEUE_INFO_FORCE_UINT32;
-const int UR_EXT_QUEUE_INFO_EMPTY = UR_EXT_QUEUE_INFO_END - 1;
-
 const ur_device_info_t UR_EXT_DEVICE_INFO_OPENCL_C_VERSION =
     (ur_device_info_t)0x103D;
 

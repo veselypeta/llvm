@@ -1119,8 +1119,8 @@ inline pi_result piContextGetInfo(pi_context context,
        UR_CONTEXT_INFO_USM_FILL2D_SUPPORT}
   };
 
-  // Special case this, as UR does not have USM memset2d, so it is never
-  // supported. It was not implemented by any PI plugin anyway.
+  // Special case as UR does not have USM memset2d, so it is never supported.
+  // It was not implemented by any PI plugin anyway.
   if (param_name == PI_EXT_ONEAPI_CONTEXT_INFO_USM_MEMSET2D_SUPPORT) {
     if (param_value_size_ret) {
       *param_value_size_ret = 4;
@@ -1758,8 +1758,7 @@ inline pi_result piQueueGetInfo(pi_queue command_queue,
       {PI_QUEUE_INFO_DEVICE_DEFAULT, UR_QUEUE_INFO_DEVICE_DEFAULT},
       {PI_QUEUE_INFO_REFERENCE_COUNT, UR_QUEUE_INFO_REFERENCE_COUNT},
       {PI_QUEUE_INFO_SIZE, UR_QUEUE_INFO_SIZE},
-      {PI_EXT_ONEAPI_QUEUE_INFO_EMPTY,
-       static_cast<ur_queue_info_t>(UR_EXT_QUEUE_INFO_EMPTY)},
+      {PI_EXT_ONEAPI_QUEUE_INFO_EMPTY, UR_QUEUE_INFO_EMPTY},
   };
 
   auto InfoType = InfoMapping.find(param_name);
