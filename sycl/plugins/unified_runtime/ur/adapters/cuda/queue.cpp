@@ -294,7 +294,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urQueueGetInfo(ur_queue_handle_t hQueue,
 
   UrReturnHelper ReturnValue(propValueSize, pPropValue, pPropSizeRet);
 
-  switch (uint32_t{propName}) {
+  switch (propName) {
   case UR_QUEUE_INFO_CONTEXT:
     return ReturnValue(hQueue->context_);
   case UR_QUEUE_INFO_DEVICE:
@@ -303,7 +303,7 @@ UR_APIEXPORT ur_result_t UR_APICALL urQueueGetInfo(ur_queue_handle_t hQueue,
     return ReturnValue(hQueue->get_reference_count());
   case UR_QUEUE_INFO_FLAGS:
     return ReturnValue(hQueue->ur_flags_);
-  case UR_EXT_QUEUE_INFO_EMPTY: {
+  case UR_QUEUE_INFO_EMPTY: {
     try {
       bool IsReady = hQueue->all_of([](CUstream s) -> bool {
         const CUresult ret = cuStreamQuery(s);

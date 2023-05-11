@@ -55,14 +55,14 @@ UR_APIEXPORT ur_result_t UR_APICALL urContextGetInfo(
     return ReturnValue(hContext->get_device());
   case UR_CONTEXT_INFO_REFERENCE_COUNT:
     return ReturnValue(hContext->get_reference_count());
-  case UR_EXT_CONTEXT_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES: {
+  case UR_CONTEXT_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES: {
     uint32_t capabilities = UR_MEMORY_ORDER_CAPABILITY_FLAG_RELAXED |
                             UR_MEMORY_ORDER_CAPABILITY_FLAG_ACQUIRE |
                             UR_MEMORY_ORDER_CAPABILITY_FLAG_RELEASE |
                             UR_MEMORY_ORDER_CAPABILITY_FLAG_ACQ_REL;
     return ReturnValue(capabilities);
   }
-  case UR_EXT_CONTEXT_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES: {
+  case UR_CONTEXT_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES: {
     int major = 0;
     sycl::detail::ur::assertion(
         cuDeviceGetAttribute(&major,
@@ -84,7 +84,6 @@ UR_APIEXPORT ur_result_t UR_APICALL urContextGetInfo(
     // 2D USM memcpy is supported.
     return ReturnValue(true);
   case UR_CONTEXT_INFO_USM_FILL2D_SUPPORT:
-  case UR_EXT_CONTEXT_INFO_USM_MEMSET2D_SUPPORT:
     // 2D USM operations currently not supported.
     return ReturnValue(false);
 

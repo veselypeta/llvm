@@ -835,70 +835,68 @@ inline pi_result piDeviceGetInfo(pi_device Device, pi_device_info ParamName,
     InfoType = UR_DEVICE_INFO_GPU_SUBSLICES_PER_SLICE;
     break;
   case PI_DEVICE_INFO_BUILD_ON_SUBDEVICE:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_BUILD_ON_SUBDEVICE;
+    InfoType = UR_DEVICE_INFO_BUILD_ON_SUBDEVICE;
     break;
   case PI_EXT_ONEAPI_DEVICE_INFO_MAX_WORK_GROUPS_3D:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_MAX_WORK_GROUPS_3D;
+    InfoType = UR_DEVICE_INFO_MAX_WORK_GROUPS_3D;
     break;
   case PI_DEVICE_INFO_IMAGE_MAX_ARRAY_SIZE:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_IMAGE_MAX_ARRAY_SIZE;
+    InfoType = UR_DEVICE_INFO_IMAGE_MAX_ARRAY_SIZE;
     break;
   case PI_DEVICE_INFO_DEVICE_ID:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_DEVICE_ID;
+    InfoType = UR_DEVICE_INFO_DEVICE_ID;
     break;
   case PI_EXT_INTEL_DEVICE_INFO_FREE_MEMORY:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_FREE_MEMORY;
+    InfoType = UR_DEVICE_INFO_GLOBAL_MEM_FREE;
     break;
   case PI_EXT_INTEL_DEVICE_INFO_MEMORY_CLOCK_RATE:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_MEMORY_CLOCK_RATE;
+    InfoType = UR_DEVICE_INFO_MEMORY_CLOCK_RATE;
     break;
   case PI_EXT_INTEL_DEVICE_INFO_MEMORY_BUS_WIDTH:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_MEMORY_BUS_WIDTH;
+    InfoType = UR_DEVICE_INFO_MEMORY_BUS_WIDTH;
     break;
   case PI_EXT_INTEL_DEVICE_INFO_MAX_COMPUTE_QUEUE_INDICES:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_MAX_COMPUTE_QUEUE_INDICES;
+    InfoType = UR_DEVICE_INFO_MAX_COMPUTE_QUEUE_INDICES;
     break;
   case PI_DEVICE_INFO_GPU_SLICES:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_GPU_SLICES;
+    InfoType = UR_DEVICE_INFO_GPU_EU_SLICES;
     break;
   case PI_DEVICE_INFO_GPU_EU_COUNT_PER_SUBSLICE:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_GPU_EU_COUNT_PER_SUBSLICE;
+    InfoType = UR_DEVICE_INFO_GPU_EU_COUNT_PER_SUBSLICE;
     break;
   case PI_DEVICE_INFO_GPU_HW_THREADS_PER_EU:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_GPU_HW_THREADS_PER_EU;
+    InfoType = UR_DEVICE_INFO_GPU_HW_THREADS_PER_EU;
     break;
   case PI_DEVICE_INFO_MAX_MEM_BANDWIDTH:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_MAX_MEM_BANDWIDTH;
+    InfoType = UR_DEVICE_INFO_MAX_MEMORY_BANDWIDTH;
     break;
   case PI_EXT_ONEAPI_DEVICE_INFO_BFLOAT16_MATH_FUNCTIONS:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_BFLOAT16;
+    InfoType = UR_DEVICE_INFO_BFLOAT16;
     break;
   case PI_EXT_DEVICE_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES:
-    InfoType =
-        (ur_device_info_t)UR_DEVICE_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES;
+    InfoType = UR_DEVICE_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES;
     break;
   case PI_EXT_DEVICE_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES:
-    InfoType =
-        (ur_device_info_t)UR_DEVICE_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES;
+    InfoType = UR_DEVICE_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES;
     break;
   case PI_EXT_DEVICE_INFO_ATOMIC_FENCE_ORDER_CAPABILITIES:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_ATOMIC_FENCE_ORDER_CAPABILITIES;
+    InfoType = UR_DEVICE_INFO_ATOMIC_FENCE_ORDER_CAPABILITIES;
     break;
   case PI_EXT_DEVICE_INFO_ATOMIC_FENCE_SCOPE_CAPABILITIES:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_ATOMIC_FENCE_SCOPE_CAPABILITIES;
+    InfoType = UR_DEVICE_INFO_ATOMIC_FENCE_SCOPE_CAPABILITIES;
     break;
   case PI_EXT_INTEL_DEVICE_INFO_MEM_CHANNEL_SUPPORT:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_MEM_CHANNEL_SUPPORT;
+    InfoType = UR_DEVICE_INFO_MEM_CHANNEL_SUPPORT;
     break;
   case PI_DEVICE_INFO_IMAGE_SRGB:
-    InfoType = (ur_device_info_t)UR_DEVICE_INFO_IMAGE_SRGB;
+    InfoType = UR_DEVICE_INFO_IMAGE_SRGB;
     break;
   case PI_DEVICE_INFO_BACKEND_VERSION: {
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_BACKEND_VERSION;
+    InfoType = UR_DEVICE_INFO_BACKEND_RUNTIME_VERSION;
     break;
   }
   case PI_EXT_ONEAPI_DEVICE_INFO_CUDA_ASYNC_BARRIER:
-    InfoType = (ur_device_info_t)UR_EXT_DEVICE_INFO_CUDA_ASYNC_BARRIER;
+    InfoType = UR_DEVICE_INFO_ASYNC_BARRIER;
     break;
   default:
     return PI_ERROR_UNKNOWN;
@@ -1112,16 +1110,26 @@ inline pi_result piContextGetInfo(pi_context context,
       {PI_CONTEXT_INFO_DEVICES, UR_CONTEXT_INFO_DEVICES},
       {PI_CONTEXT_INFO_REFERENCE_COUNT, UR_CONTEXT_INFO_REFERENCE_COUNT},
       {PI_EXT_CONTEXT_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES,
-       (ur_context_info_t)UR_EXT_CONTEXT_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES},
+       UR_CONTEXT_INFO_ATOMIC_MEMORY_ORDER_CAPABILITIES},
       {PI_EXT_CONTEXT_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES,
-       (ur_context_info_t)UR_EXT_CONTEXT_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES},
+       UR_CONTEXT_INFO_ATOMIC_MEMORY_SCOPE_CAPABILITIES},
       {PI_EXT_ONEAPI_CONTEXT_INFO_USM_MEMCPY2D_SUPPORT,
        UR_CONTEXT_INFO_USM_MEMCPY2D_SUPPORT},
       {PI_EXT_ONEAPI_CONTEXT_INFO_USM_FILL2D_SUPPORT,
-       UR_CONTEXT_INFO_USM_FILL2D_SUPPORT},
-      {PI_EXT_ONEAPI_CONTEXT_INFO_USM_MEMSET2D_SUPPORT,
-       (ur_context_info_t)UR_EXT_CONTEXT_INFO_USM_MEMSET2D_SUPPORT},
+       UR_CONTEXT_INFO_USM_FILL2D_SUPPORT}
   };
+
+  // Special case as UR does not have USM memset2d, so it is never supported.
+  // It was not implemented by any PI plugin anyway.
+  if (param_name == PI_EXT_ONEAPI_CONTEXT_INFO_USM_MEMSET2D_SUPPORT) {
+    if (param_value_size_ret) {
+      *param_value_size_ret = 4;
+    }
+    if (param_value) {
+      *(static_cast<uint32_t *>(param_value)) = 0u;
+    }
+    return PI_SUCCESS;
+  }
 
   auto InfoType = InfoMapping.find(param_name);
   if (InfoType == InfoMapping.end()) {
@@ -1750,8 +1758,7 @@ inline pi_result piQueueGetInfo(pi_queue command_queue,
       {PI_QUEUE_INFO_DEVICE_DEFAULT, UR_QUEUE_INFO_DEVICE_DEFAULT},
       {PI_QUEUE_INFO_REFERENCE_COUNT, UR_QUEUE_INFO_REFERENCE_COUNT},
       {PI_QUEUE_INFO_SIZE, UR_QUEUE_INFO_SIZE},
-      {PI_EXT_ONEAPI_QUEUE_INFO_EMPTY,
-       static_cast<ur_queue_info_t>(UR_EXT_QUEUE_INFO_EMPTY)},
+      {PI_EXT_ONEAPI_QUEUE_INFO_EMPTY, UR_QUEUE_INFO_EMPTY},
   };
 
   auto InfoType = InfoMapping.find(param_name);

@@ -433,7 +433,7 @@ ur_result_t urDeviceGetInfo(
   // zeModuleCreate allows using root device module for sub-devices:
   // > The application must only use the module for the device, or its
   // > sub-devices, which was provided during creation.
-  case UR_EXT_DEVICE_INFO_BUILD_ON_SUBDEVICE:
+  case UR_DEVICE_INFO_BUILD_ON_SUBDEVICE:
     return ReturnValue(uint32_t{0});
   case UR_DEVICE_INFO_COMPILER_AVAILABLE:
     return ReturnValue(uint32_t{1});
@@ -467,7 +467,7 @@ ur_result_t urDeviceGetInfo(
                        Device->ZeDeviceComputeProperties->maxGroupSizeZ}};
     return ReturnValue(MaxGroupSize);
   }
-  case UR_EXT_DEVICE_INFO_MAX_WORK_GROUPS_3D: {
+  case UR_DEVICE_INFO_MAX_WORK_GROUPS_3D: {
     struct {
       size_t Arr[3];
     } MaxGroupCounts = {{Device->ZeDeviceComputeProperties->maxGroupCountX,
@@ -821,13 +821,14 @@ ur_result_t urDeviceGetInfo(
     auto MapCaps = [](const ze_memory_access_cap_flags_t &ZeCapabilities) {
       uint64_t Capabilities = 0;
       if (ZeCapabilities & ZE_MEMORY_ACCESS_CAP_FLAG_RW)
-        Capabilities |= UR_EXT_USM_CAPS_ACCESS;
+        Capabilities |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ACCESS;
       if (ZeCapabilities & ZE_MEMORY_ACCESS_CAP_FLAG_ATOMIC)
-        Capabilities |= UR_EXT_USM_CAPS_ATOMIC_ACCESS;
+        Capabilities |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_ACCESS;
       if (ZeCapabilities & ZE_MEMORY_ACCESS_CAP_FLAG_CONCURRENT)
-        Capabilities |= UR_EXT_USM_CAPS_CONCURRENT_ACCESS;
+        Capabilities |= UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_CONCURRENT_ACCESS;
       if (ZeCapabilities & ZE_MEMORY_ACCESS_CAP_FLAG_CONCURRENT_ATOMIC)
-        Capabilities |= UR_EXT_USM_CAPS_CONCURRENT_ATOMIC_ACCESS;
+        Capabilities |=
+            UR_DEVICE_USM_ACCESS_CAPABILITY_FLAG_ATOMIC_CONCURRENT_ACCESS;
       return Capabilities;
     };
     auto &Props = Device->ZeDeviceMemoryAccessProperties;
@@ -867,11 +868,11 @@ ur_result_t urDeviceGetInfo(
     return ReturnValue(AddressBuffer);
   }
 
-  case UR_EXT_DEVICE_INFO_FREE_MEMORY: {
+  case UR_DEVICE_INFO_GLOBAL_MEM_FREE: {
     if (getenv("ZES_ENABLE_SYSMAN") == nullptr) {
       setErrorMessage("Set ZES_ENABLE_SYSMAN=1 to obtain free memory",
                       UR_RESULT_SUCCESS);
-      return UR_EXT_RESULT_ADAPTER_SPECIFIC_ERROR;
+      return UR_RESULT_ERROR_ADAPTER_SPECIFIC;
     }
     // Only report device memory which zeMemAllocDevice can allocate from.
     // Currently this is only the one enumerated with ordinal 0.
@@ -915,7 +916,7 @@ ur_result_t urDeviceGetInfo(
                          Device->ZeDeviceMemoryProperties->first.end(), Comp);
     return ReturnValue(uint32_t{MinIt->maxClockRate});
   }
-  case UR_EXT_DEVICE_INFO_MEMORY_BUS_WIDTH: {
+  case UR_DEVICE_INFO_MEMORY_BUS_WIDTH: {
     // If there are not any memory modules then return 0.
     if (Device->ZeDeviceMemoryProperties->first.empty())
       return ReturnValue(uint32_t{0});
@@ -951,16 +952,16 @@ ur_result_t urDeviceGetInfo(
   case UR_DEVICE_INFO_GPU_EU_SIMD_WIDTH:
     return ReturnValue(
         uint32_t{Device->ZeDeviceProperties->physicalEUSimdWidth});
-  case UR_EXT_DEVICE_INFO_GPU_SLICES:
+  case UR_DEVICE_INFO_GPU_EU_SLICES:
     return ReturnValue(uint32_t{Device->ZeDeviceProperties->numSlices});
   case UR_DEVICE_INFO_GPU_SUBSLICES_PER_SLICE:
     return ReturnValue(
         uint32_t{Device->ZeDeviceProperties->numSubslicesPerSlice});
-  case UR_EXT_DEVICE_INFO_GPU_EU_COUNT_PER_SUBSLICE:
+  case UR_DEVICE_INFO_GPU_EU_COUNT_PER_SUBSLICE:
     return ReturnValue(uint32_t{Device->ZeDeviceProperties->numEUsPerSubslice});
-  case UR_EXT_DEVICE_INFO_GPU_HW_THREADS_PER_EU:
+  case UR_DEVICE_INFO_GPU_HW_THREADS_PER_EU:
     return ReturnValue(uint32_t{Device->ZeDeviceProperties->numThreadsPerEU});
-  case UR_EXT_DEVICE_INFO_MAX_MEM_BANDWIDTH:
+  case UR_DEVICE_INFO_MAX_MEMORY_BANDWIDTH:
     // currently not supported in level zero runtime
     return UR_RESULT_ERROR_INVALID_VALUE;
   case UR_DEVICE_INFO_BFLOAT16: {
@@ -1013,7 +1014,7 @@ ur_result_t urDeviceGetInfo(
         UR_MEMORY_ORDER_CAPABILITY_FLAG_SEQ_CST;
     return ReturnValue(capabilities);
   }
-  case UR_EXT_DEVICE_INFO_MEM_CHANNEL_SUPPORT:
+  case UR_DEVICE_INFO_MEM_CHANNEL_SUPPORT:
     return ReturnValue(pi_bool{false});
   case UR_DEVICE_INFO_IMAGE_SRGB:
     return ReturnValue(pi_bool{false});
