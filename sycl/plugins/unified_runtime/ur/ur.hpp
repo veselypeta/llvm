@@ -302,6 +302,10 @@ getInfo<const char *>(size_t param_value_size, void *param_value,
 }
 } // namespace ur
 
+// FIXME: This class will cause failures in the UR CTS tests as it is used in UR
+// getInfo entry-points, this should be okay for now to make sycl-rt works
+// correctly with the existing PI layer. But, it should be deleted once the PI
+// layer is completely ported to UR and deleted.
 class UrReturnHelper {
 public:
   UrReturnHelper(size_t param_value_size, void *param_value,
@@ -338,6 +342,17 @@ protected:
   void *param_value;
   size_t *param_value_size_ret;
 };
+
+template <>
+inline ur_result_t UrReturnHelper::operator()<bool>(const bool &value) {
+  if (param_value_size_ret) {
+    *param_value_size_ret = 4;
+  }
+  if (param_value) {
+    *static_cast<uint32_t *>(param_value) = static_cast<uint32_t>(value);
+  }
+  return UR_RESULT_SUCCESS;
+}
 
 // Global variables for ZER_EXT_RESULT_ADAPTER_SPECIFIC_ERROR
 constexpr size_t MaxMessageSize = 256;
