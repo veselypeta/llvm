@@ -343,17 +343,6 @@ protected:
   size_t *param_value_size_ret;
 };
 
-template <>
-inline ur_result_t UrReturnHelper::operator()<bool>(const bool &value) {
-  if (param_value_size_ret) {
-    *param_value_size_ret = 4;
-  }
-  if (param_value) {
-    *static_cast<uint32_t *>(param_value) = static_cast<uint32_t>(value);
-  }
-  return UR_RESULT_SUCCESS;
-}
-
 // Global variables for ZER_EXT_RESULT_ADAPTER_SPECIFIC_ERROR
 constexpr size_t MaxMessageSize = 256;
 extern thread_local ur_result_t ErrorMessageCode;
