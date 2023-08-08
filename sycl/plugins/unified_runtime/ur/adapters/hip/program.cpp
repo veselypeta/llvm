@@ -33,25 +33,25 @@ ur_result_t ur_program_handle_t_::buildProgram(const char *BuildOptions) {
 
   constexpr const unsigned int NumberOfOptions = 4u;
 
-  hipJitOption Options[NumberOfOptions];
+  //hipJitOption Options[NumberOfOptions];
   void *OptionVals[NumberOfOptions];
 
   // Pass a buffer for info messages
-  Options[0] = hipJitOptionInfoLogBuffer;
+  //Options[0] = hipJitOptionInfoLogBuffer;
   OptionVals[0] = (void *)InfoLog;
   // Pass the size of the info buffer
-  Options[1] = hipJitOptionInfoLogBufferSizeBytes;
+  //Options[1] = hipJitOptionInfoLogBufferSizeBytes;
   OptionVals[1] = (void *)(long)MAX_LOG_SIZE;
   // Pass a buffer for error message
-  Options[2] = hipJitOptionErrorLogBuffer;
+  //Options[2] = hipJitOptionErrorLogBuffer;
   OptionVals[2] = (void *)ErrorLog;
   // Pass the size of the error buffer
-  Options[3] = hipJitOptionErrorLogBufferSizeBytes;
+  //Options[3] = hipJitOptionErrorLogBufferSizeBytes;
   OptionVals[3] = (void *)(long)MAX_LOG_SIZE;
 
   auto Result = UR_CHECK_ERROR(
       hipModuleLoadDataEx(&Module, static_cast<const void *>(Binary),
-                          NumberOfOptions, Options, OptionVals));
+                          NumberOfOptions, nullptr, OptionVals));
 
   const bool Success = (Result == UR_RESULT_SUCCESS);
 

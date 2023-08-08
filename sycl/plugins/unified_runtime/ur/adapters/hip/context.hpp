@@ -7,9 +7,13 @@
 //===-----------------------------------------------------------------===//
 #pragma once
 
+#include <set>
+
 #include "common.hpp"
 #include "device.hpp"
 #include "platform.hpp"
+
+#include <umf/memory_pool.h>
 
 typedef void (*ur_context_extended_deleter_t)(void *UserData);
 
@@ -93,9 +97,16 @@ struct ur_context_handle_t_ {
 
   uint32_t getReferenceCount() const noexcept { return RefCount; }
 
+  void addPool(ur_usm_pool_handle_t Pool);
+
+  void removePool(ur_usm_pool_handle_t Pool);
+
+  ur_usm_pool_handle_t getOwningURPool(umf_memory_pool_t *UMFPool);
+
 private:
   std::mutex Mutex;
   std::vector<deleter_data> ExtendedDeleters;
+  std::set<ur_usm_pool_handle_t> PoolHandles;
 };
 
 namespace {

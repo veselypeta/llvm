@@ -24,11 +24,30 @@ private:
   ur_platform_handle_t Platform;
   hipCtx_t HIPContext;
 
+
+  size_t MaxAllocSize{0};
+
 public:
   ur_device_handle_t_(native_type HipDevice, hipCtx_t Context,
                       ur_platform_handle_t Platform)
       : HIPDevice(HipDevice), RefCount{1}, Platform(Platform),
-        HIPContext(Context) {}
+        HIPContext(Context) {
+          // Max size of memory object allocation in bytes.
+          // The minimum value is max(min(1024 × 1024 ×
+          // 1024, 1/4th of CL_DEVICE_GLOBAL_MEM_SIZE),
+          // 32 × 1024 × 1024) for devices that are not of type
+          // CL_DEVICE_TYPE_CUSTOM.
+
+          size_t Global = 0;
+          //detail::ur::assertion(hipDeviceTotalMem(&Global, HIPDevice->get()) ==
+                                //hipSuccess);
+          UR_CHECK_ERROR(hipDeviceTotalMem(&Global, HIPDevice));
+
+          auto QuarterGlobal = static_cast<uint32_t>(Global / 4u);
+
+          MaxAllocSize = std::max(std::min(1024u * 1024u * 1024u, QuarterGlobal),
+                                  32u * 1024u * 1024u);
+        }
 
   ~ur_device_handle_t_() {
     UR_CHECK_ERROR(hipDevicePrimaryCtxRelease(HIPDevice));
@@ -41,6 +60,8 @@ public:
   ur_platform_handle_t getPlatform() const noexcept { return Platform; };
 
   hipCtx_t getNativeContext() { return HIPContext; };
+
+  size_t getMaxAllocSize() const noexcept { return MaxAllocSize; };
 };
 
 int getAttribute(ur_device_handle_t Device, hipDeviceAttribute_t Attribute);
