@@ -121,6 +121,7 @@ add_sycl_plugin(hip
     "../unified_runtime/ur/adapters/hip/ur_interface_loader.cpp"
     "../unified_runtime/ur/adapters/hip/usm.cpp"
     "../unified_runtime/ur/adapters/hip/usm_p2p.cpp"
+    "../unified_runtime/ur/adapters/hip/virtual_memory.cpp"
     "${sycl_inc_dir}/sycl/detail/pi.h"
     "${sycl_inc_dir}/sycl/detail/pi.hpp"
     "pi_hip.hpp"
