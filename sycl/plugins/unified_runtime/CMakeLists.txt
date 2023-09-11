@@ -225,6 +225,7 @@ if ("hip" IN_LIST SYCL_ENABLE_PLUGINS)
       "ur/adapters/hip/usm.cpp"
       "ur/adapters/hip/usm_p2p.cpp"
       "ur/adapters/hip/virtual_memory.cpp"
+      "ur/adapters/hip/virtual_memory.hpp"
     INCLUDE_DIRS
       ${sycl_inc_dir}
     LIBRARIES

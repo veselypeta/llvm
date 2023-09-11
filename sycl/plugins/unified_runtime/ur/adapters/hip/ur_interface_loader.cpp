@@ -322,6 +322,20 @@ UR_DLLEXPORT ur_result_t UR_APICALL urGetVirtualMemProcAddrTable(
   return UR_RESULT_SUCCESS;
 }
 
+UR_DLLEXPORT ur_result_t UR_APICALL urGetPhysicalMemProcAddrTable(
+    ur_api_version_t version, ur_physical_mem_dditable_t *pDdiTable) {
+  auto retVal = validateProcInputs(version, pDdiTable);
+  if (UR_RESULT_SUCCESS != retVal) {
+    return retVal;
+  }
+
+  pDdiTable->pfnCreate = urPhysicalMemCreate;
+  pDdiTable->pfnRelease = urPhysicalMemRelease;
+  pDdiTable->pfnRetain = urPhysicalMemRetain;
+
+  return UR_RESULT_SUCCESS;
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
